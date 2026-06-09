@@ -1193,9 +1193,10 @@
       transactionsTableBody.innerHTML = "";
       const query = searchQueryInput.value.trim().toLowerCase();
 
-      // Filtrar resultados por palabra clave
+      // Filtrar resultados estrictamente por la palabra clave (solamente aparecerá lo buscado)
       const filteredTrxs = mappedTransactions.filter(t => {
         if (query.length === 0) return true;
+        // Comprobación estricta de presencia del término de búsqueda en cualquiera de los campos mapeados
         return t.fecha.toLowerCase().includes(query) ||
                t.operacion.toLowerCase().includes(query) ||
                t.descripcion.toLowerCase().includes(query) ||
@@ -1206,11 +1207,13 @@
         transactionsTableBody.innerHTML = `
           <tr>
             <td colspan="7" class="text-center py-10 text-slate-400 italic">
-              No se encontraron filas que coincidan con la búsqueda actual.
+              No se encontraron filas que coincidan con la búsqueda actual ("${query}").
             </td>
           </tr>
         `;
-        updateSummaryMetrics();
+        // Actualizar métricas con cero filas activas
+        tableSummaryCount.textContent = "0";
+        tableSummarySum.textContent = "$0.00";
         return;
       }
 
@@ -1246,7 +1249,12 @@
         transactionsTableBody.appendChild(row);
       });
 
-      updateSummaryMetrics();
+      // Actualizar los resúmenes financieros con los datos estrictamente filtrados en pantalla
+      const activeFilteredRows = filteredTrxs.filter(t => t.active);
+      tableSummaryCount.textContent = activeFilteredRows.length;
+      
+      const totalFilteredSum = activeFilteredRows.reduce((acc, curr) => acc + curr.abono, 0);
+      tableSummarySum.textContent = `$${totalFilteredSum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     // --- ACCIONES GLOBALES DE LA TABLA ---
@@ -1325,6 +1333,7 @@
 
     // --- EXPORTAR A EXCEL (XLSX) ---
     btnExportExcel.addEventListener('click', () => {
+      // Tomamos solo las filas activas para exportación
       const activeRows = mappedTransactions.filter(t => t.active);
       if (activeRows.length === 0) {
         showToast("No hay registros marcados o activos para exportar.", "error");
@@ -1334,7 +1343,7 @@
       try {
         const query = searchQueryInput.value.trim().toLowerCase();
         
-        // Filtrar respetando la búsqueda actual en pantalla
+        // Filtro estricto: exportar SOLO lo que coincide con la búsqueda
         const filteredData = activeRows.filter(t => {
           if (query.length === 0) return true;
           return t.fecha.toLowerCase().includes(query) ||
@@ -1344,11 +1353,11 @@
         });
 
         if (filteredData.length === 0) {
-          showToast("No hay registros activos que coincidan con la búsqueda para exportar.", "error");
+          showToast(`No hay registros activos coincidentes con la búsqueda ("${query}") para exportar.`, "error");
           return;
         }
 
-        // Mapear columnas exactamente con los datos de las filas
+        // Mapear columnas exactamente con la información del archivo de origen
         const excelRows = filteredData.map(t => ({
           "Página PDF": t.page,
           "Fecha": t.fecha,
@@ -1390,7 +1399,7 @@
       try {
         const query = searchQueryInput.value.trim().toLowerCase();
         
-        // Filtrar según el término de búsqueda
+        // Filtro estricto: exportar SOLO lo que coincide con la búsqueda
         const filteredData = activeRows.filter(t => {
           if (query.length === 0) return true;
           return t.fecha.toLowerCase().includes(query) ||
@@ -1400,7 +1409,7 @@
         });
 
         if (filteredData.length === 0) {
-          showToast("No hay registros activos que coincidan con la búsqueda para exportar.", "error");
+          showToast(`No hay registros activos coincidentes con la búsqueda ("${query}") para exportar.`, "error");
           return;
         }
 
