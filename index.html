@@ -1,1471 +1,525 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Deep Search & Exporter - Filtro Estricto de Filas</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- PDF.js desde CDN de confianza -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <!-- Librerías de Exportación -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-  <!-- Inter Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-    .highlight-match {
-      background-color: rgba(253, 224, 71, 0.7);
-      border-bottom: 2px solid #eab308;
-      border-radius: 2px;
-      padding: 0 2px;
-      color: #0f172a;
-      font-weight: 600;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscador de Transferencias — CuentaRUT BancoEstado</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f2f4f9;--sur:#fff;--sur2:#f0f2f8;
+  --bdr:#e0e5f0;--bdr2:#c5cde0;
+  --tx:#151926;--tx2:#4e5670;--tx3:#8d95ae;
+  --ac:#1e4fd8;--acl:#eef2fd;--acb:#b5c6f5;
+  --gn:#15803d;--gnl:#f0fdf4;--gnb:#86efac;
+  --yw:#fef9c3;--yt:#78350f;
+  --r:8px;--r2:12px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
+
+/* HEADER */
+header{background:var(--sur);border-bottom:1px solid var(--bdr);height:54px;display:flex;align-items:center;padding:0 24px;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.hico{width:28px;height:28px;background:var(--ac);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hico svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2}
+header h1{font-size:14px;font-weight:700;color:var(--tx)}
+header p{font-size:12px;color:var(--tx3)}
+
+/* LAYOUT */
+.wrap{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 54px);overflow:hidden}
+
+/* SIDEBAR */
+.side{background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
+.side::-webkit-scrollbar{width:4px}.side::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.sec{padding:16px 18px;border-bottom:1px solid var(--bdr)}
+.lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:10px}
+
+/* DROP */
+.drop{border:2px dashed var(--bdr2);border-radius:var(--r2);padding:22px 14px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg)}
+.drop:hover,.drop.over{border-color:var(--ac);background:var(--acl)}
+.drop.ok{border-color:var(--gn);background:var(--gnl);cursor:default;padding:14px}
+.drop-ico{width:40px;height:40px;border-radius:50%;background:var(--sur);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.drop-ico svg{width:20px;height:20px;stroke:var(--ac);fill:none;stroke-width:1.6}
+.drop.ok .drop-ico{background:var(--gnl)}.drop.ok .drop-ico svg{stroke:var(--gn)}
+.drop p{font-size:12px;color:var(--tx2);line-height:1.5}
+.drop strong{color:var(--tx);font-weight:600}
+.drop small{font-size:11px;color:var(--tx3);display:block;margin-top:2px}
+#fi{display:none}
+
+/* FILE BADGE */
+.fb{display:none;align-items:center;gap:7px;background:var(--gnl);border:1px solid var(--gnb);border-radius:var(--r);padding:8px 10px;margin-top:8px}
+.fb.on{display:flex}
+.fb svg{width:14px;height:14px;stroke:var(--gn);fill:none;flex-shrink:0}
+.fb-name{font-size:11px;font-weight:700;color:var(--gn);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fb-sub{font-size:10px;color:#16a34a}
+
+/* PROGRESS */
+.prog{display:none;margin-top:10px}.prog.on{display:block}
+.pg-tr{background:var(--sur2);border-radius:99px;height:5px;overflow:hidden}
+.pg-fi{height:100%;background:var(--ac);border-radius:99px;transition:width .2s;width:0}
+.pg-lb{font-size:10px;color:var(--tx3);margin-top:4px;text-align:center}
+
+/* SEARCH */
+.sbox{position:relative}
+.sico{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--tx3);fill:none;pointer-events:none}
+.sinp{width:100%;padding:8px 30px 8px 28px;border:1px solid var(--bdr);border-radius:var(--r);font-size:14px;background:var(--bg);color:var(--tx);outline:none;transition:.15s}
+.sinp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(30,79,216,.08);background:#fff}
+.xcl{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:17px;height:17px;background:var(--tx3);border:none;border-radius:50%;cursor:pointer;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center}
+.xcl.on{display:flex}.xcl:hover{background:var(--tx2)}
+
+/* HINT */
+.hint{font-size:11px;color:var(--tx3);margin-top:6px;line-height:1.6}
+
+/* BTN */
+.btn{width:100%;padding:9px;background:var(--ac);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;transition:.15s}
+.btn:hover{background:#1740b8}.btn:active{transform:scale(.98)}.btn:disabled{background:var(--tx3);cursor:not-allowed;transform:none}
+.btn svg{width:14px;height:14px;stroke:#fff;fill:none}
+
+/* SUMMARY */
+.sumbox{background:var(--sur2);border-radius:var(--r);overflow:hidden}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--bdr)}
+.sum-row:last-child{border-bottom:none}
+.sk{color:var(--tx2)}
+.sv{font-weight:700;color:var(--tx)}
+.sv.ac{color:var(--ac)}.sv.gn{color:var(--gn)}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.toptitle{font-size:13px;font-weight:700;color:var(--tx)}
+.topright{display:flex;align-items:center;gap:8px}
+.pill{background:var(--acl);color:var(--ac);border:1px solid var(--acb);border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700;display:none}
+.pill.on{display:inline-flex}
+
+/* EXPORT */
+.expbtn{padding:6px 12px;border:1px solid var(--bdr2);border-radius:var(--r);background:var(--sur);font-size:12px;font-weight:700;color:var(--tx2);cursor:pointer;display:none;align-items:center;gap:5px;transition:.15s}
+.expbtn:hover{background:var(--sur2);color:var(--tx)}.expbtn.on{display:flex}
+.expbtn svg{width:12px;height:12px;stroke:currentColor;fill:none}
+
+/* TABLE */
+.twrap{flex:1;overflow:auto}
+.twrap::-webkit-scrollbar{width:6px;height:6px}.twrap::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:680px}
+thead th{background:var(--sur);border-bottom:2px solid var(--bdr);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);position:sticky;top:0;z-index:10;white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:var(--ac)}.sorted{color:var(--ac)!important}
+tbody tr{background:var(--sur)}.tbody tr:not(:last-child) td{border-bottom:1px solid var(--bdr)}
+td{padding:9px 14px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+tr:hover td{background:#f7f9ff}
+.td-fecha{white-space:nowrap;color:var(--tx2);font-size:12px;font-weight:600}
+.td-op{font-family:'Courier New',monospace;font-size:11px;color:var(--tx3);white-space:nowrap}
+.td-desc{max-width:380px}
+.desc-txt{color:var(--tx);line-height:1.4;word-break:break-word}
+.desc-txt mark{background:var(--yw);color:var(--yt);border-radius:2px;padding:0 2px;font-style:normal}
+.td-ab{text-align:right;white-space:nowrap}
+.ab-val{font-weight:700;color:var(--gn);font-size:14px}
+
+/* TOTAL ROW */
+.tfoot td{background:var(--gnl)!important;border-top:2px solid var(--gnb)!important;font-weight:700}
+.tfoot .tot-lbl{color:var(--tx2);font-size:11px;font-weight:700}
+.tfoot .ab-val{font-size:15px}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:60px 20px;text-align:center;height:100%}
+.empty svg{width:44px;height:44px;stroke:var(--tx3);fill:none;stroke-width:1.2;margin-bottom:12px}
+.empty h3{font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:5px}
+.empty p{font-size:12px;color:var(--tx3);max-width:240px;line-height:1.6}
+</style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body>
 
-  <!-- Encabezado Principal -->
-  <header class="bg-gradient-to-r from-indigo-800 to-slate-900 text-white shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-5 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-3">
-        <div class="bg-white/10 p-2.5 rounded-xl border border-white/20">
-          <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10vd12m-6-6h12m-3-12h1.5A2.5 2.5 0 0119 5.5V17a3 3 0 01-3 3H4a3 3 0 01-3-3V5.5A2.5 2.5 0 013.5 3H5"></path>
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-2xl font-bold tracking-tight">PDF Deep Search & Export</h1>
-          <p class="text-xs text-indigo-200 font-medium">Buscador y Mapeador Semántico Ultrapreciso de Transacciones Bancarias</p>
-        </div>
-      </div>
-      <div class="text-xs text-indigo-100 text-right hidden md:block bg-white/5 py-1.5 px-3 rounded-lg border border-white/10">
-        <p class="font-medium">Análisis en caliente de todas las páginas</p>
-        <p class="opacity-70">Filtrado estricto por coincidencia</p>
-      </div>
-    </div>
-  </header>
+<header>
+  <div class="hico"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="3"/><path d="M8 9h8M8 13h5M8 17h3"/></svg></div>
+  <div>
+    <h1>Buscador de Transferencias Bancarias</h1>
+    <p>Cartola CuentaRUT BancoEstado — extrae Fecha, N° Operación, Descripción y Abonos</p>
+  </div>
+</header>
 
-  <!-- Contenido Principal -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-6">
-    
-    <!-- Zona de Carga de Archivo -->
-    <div id="dropZone" class="bg-white border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-10 text-center transition-all cursor-pointer shadow-sm relative overflow-hidden group">
-      <input type="file" id="fileInput" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" />
-      <div class="flex flex-col items-center justify-center gap-4">
-        <div class="bg-indigo-50 text-indigo-600 p-5 rounded-full group-hover:scale-110 transition-transform shadow-xs">
-          <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
+<div class="wrap">
+  <div class="side">
+
+    <!-- UPLOAD -->
+    <div class="sec">
+      <div class="lbl">Archivo PDF</div>
+      <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+        <div class="drop-ico">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
-        <div>
-          <p class="text-xl font-bold text-slate-700">Sube tu PDF para iniciar la extracción</p>
-          <p class="text-sm text-slate-500 mt-1">Busca por nombre, rut, descripción y obtén el reporte exacto de Fecha, Operación, Descripción y Abono.</p>
-          <div class="mt-4 flex justify-center gap-2">
-            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-medium">
-              Lectura de todas las páginas
-            </span>
-            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-medium">
-              Filtro estricto de coincidencia
-            </span>
-          </div>
-        </div>
+        <p><strong>Arrastra tu PDF aquí</strong><br>o haz clic para seleccionar</p>
+        <small>Cartola CuentaRUT BancoEstado</small>
+      </div>
+      <input type="file" id="fi" accept=".pdf">
+      <div class="fb" id="fb">
+        <svg viewBox="0 0 24 24" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <div><div class="fb-name" id="fname">—</div><div class="fb-sub" id="fpages">—</div></div>
+      </div>
+      <div class="prog" id="prog">
+        <div class="pg-tr"><div class="pg-fi" id="pfi"></div></div>
+        <div class="pg-lb" id="plb">Procesando…</div>
       </div>
     </div>
 
-    <!-- Barra de Progreso de Análisis Detallado -->
-    <div id="progressContainer" class="hidden bg-white rounded-2xl p-6 shadow-md border border-slate-100">
-      <div class="flex justify-between items-center mb-3">
-        <div class="flex items-center gap-2.5">
-          <span class="relative flex h-3 w-3">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
-          </span>
-          <span class="font-semibold text-slate-700 text-sm md:text-base" id="progressStatus">Analizando documento...</span>
-        </div>
-        <span class="text-sm font-bold text-indigo-600" id="progressPercent">0%</span>
+    <!-- SEARCH -->
+    <div class="sec">
+      <div class="lbl">Buscar en descripción</div>
+      <div class="sbox">
+        <svg class="sico" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="sinp" id="sq" placeholder="Nombre, empresa, TEF, RUT…">
+        <button class="xcl" id="xcl" onclick="clearQ()">×</button>
       </div>
-      <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-        <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
-      </div>
-      
-      <!-- Consola de Indexación en Tiempo Real -->
-      <div class="mt-4">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lectura y Extracción en Proceso:</p>
-        <div id="indexLogConsole" class="bg-slate-900 text-emerald-400 font-mono text-[11px] p-3 rounded-lg h-36 overflow-y-auto flex flex-col gap-1 shadow-inner border border-slate-800">
-          <div class="text-slate-400 italic">Iniciando motor de lectura de páginas...</div>
-        </div>
+      <div class="hint">Solo se muestran filas con <strong>Abono</strong> que coincidan con la búsqueda. Separa palabras para filtrar por varias a la vez.</div>
+      <button class="btn" id="sbtn" onclick="run()" disabled>
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Buscar y mostrar resultados
+      </button>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="sec" id="sumSec" style="display:none">
+      <div class="lbl">Resumen de búsqueda</div>
+      <div class="sumbox">
+        <div class="sum-row"><span class="sk">Resultados</span><span class="sv ac" id="sN">0</span></div>
+        <div class="sum-row"><span class="sk">Páginas cubiertas</span><span class="sv" id="sPg">0</span></div>
+        <div class="sum-row"><span class="sk">Total abonos</span><span class="sv gn" id="sAb">$0</span></div>
       </div>
     </div>
 
-    <!-- Panel de Información del Documento Activo -->
-    <div id="docMetaInfo" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3 shadow-xs">
-      <div class="flex items-center gap-2.5">
-        <div class="bg-emerald-100 p-1.5 rounded-lg text-emerald-700">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-        </div>
-        <div>
-          <span class="font-bold text-slate-950 block text-sm sm:inline sm:text-base" id="loadedDocName">documento.pdf</span>
-          <span class="text-xs text-emerald-700 sm:ml-2 font-medium" id="loadedDocPages">(0 páginas analizadas)</span>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <span id="badgeTotalLines" class="bg-indigo-100 text-indigo-800 text-xs px-2.5 py-1 rounded-md font-semibold">0 filas de datos crudas</span>
-        <button id="btnReset" class="text-xs text-slate-600 hover:text-red-600 font-bold transition-colors flex items-center gap-1 py-1 px-2 hover:bg-red-50 rounded-lg">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-          </svg>
-          Quitar archivo
+  </div><!-- /side -->
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="toptitle" id="ttitle">Sube un PDF para comenzar</span>
+      <div class="topright">
+        <span class="pill" id="pill">0</span>
+        <button class="expbtn" id="expbtn" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar CSV
         </button>
       </div>
     </div>
-
-    <!-- Área de Trabajo Principal (Buscador y Visualizador) -->
-    <div id="searchWorkspace" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      
-      <!-- Panel de Controles de Búsqueda (Izquierda - 4 Columnas) -->
-      <section class="lg:col-span-4 flex flex-col gap-4">
-        
-        <!-- Tarjeta de Búsqueda -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
-          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-            Buscador Estricto
-          </h2>
-
-          <!-- Búsqueda por Texto / Descripción -->
-          <div class="flex flex-col gap-1.5">
-            <label for="searchQuery" class="text-xs font-bold text-slate-600">Palabra clave (ej: Adnan, compra, RUT)</label>
-            <div class="relative">
-              <input type="text" id="searchQuery" placeholder="Escribe el nombre o término..." class="w-full pl-3 pr-8 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-xs" />
-              <button id="btnClearText" class="absolute right-2.5 top-3 text-slate-400 hover:text-slate-600 hidden">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-            <p class="text-[10px] text-slate-400">Solo se procesarán y exportarán las filas que tengan una coincidencia exacta.</p>
-          </div>
-
-          <!-- Botones de Acción -->
-          <div class="flex gap-2 pt-1">
-            <button id="btnSearch" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
-              Filtrar
-            </button>
-            <button id="btnResetFilters" class="border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium py-2.5 px-3 rounded-lg text-sm transition-colors">
-              Limpiar
-            </button>
-          </div>
-        </div>
-
-        <!-- Modo de Procesamiento de Columnas -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Modo de Extracción</h3>
-          <div class="flex flex-col gap-2">
-            <label class="inline-flex items-center cursor-pointer">
-              <input type="radio" name="extractionMode" value="smart" checked class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500" />
-              <span class="ml-2 text-xs font-semibold text-slate-800">Automático Inteligente (Sugerido)</span>
-            </label>
-            <p class="text-[10px] text-slate-500 ml-6">El algoritmo identifica de forma adaptativa cada columna dentro de la fila de forma directa.</p>
-            
-            <label class="inline-flex items-center cursor-pointer mt-2">
-              <input type="radio" name="extractionMode" value="manual" class="h-4 w-4 text-indigo-600 border-slate-300 focus:ring-indigo-500" />
-              <span class="ml-2 text-xs font-semibold text-slate-800">Mapeo Manual por Posición</span>
-            </label>
-            <p class="text-[10px] text-slate-500 ml-6">Te permite definir manualmente los índices de columna utilizando un delimitador.</p>
-          </div>
-        </div>
-
-        <!-- Resultados Encontrados -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900 flex justify-between items-center shadow-xs">
-          <span class="font-semibold">Coincidencias en páginas:</span>
-          <span id="resultsCount" class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">0</span>
-        </div>
-
-        <!-- Acceso Directo a Exportación Global -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">
-          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Exportar Resultados Actuales</h3>
-          <p class="text-[11px] text-slate-500">Descarga los registros filtrados en formato Excel estructurado o PDF Tabular.</p>
-          <div class="grid grid-cols-2 gap-2">
-            <button id="btnExportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              Excel (.xlsx)
-            </button>
-            <button id="btnExportPDF" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              PDF Tabla
-            </button>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- Panel de Resultados y Visualización (Derecha - 8 Columnas) -->
-      <section class="lg:col-span-8 flex flex-col gap-6">
-        
-        <!-- Pestañas Superiores de Navegación -->
-        <div class="flex border-b border-slate-200 bg-white p-2 rounded-2xl shadow-xs gap-1">
-          <button id="tabButtonPages" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700">
-            🔎 Buscador Visual de Páginas
-          </button>
-          <button id="tabButtonTable" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50">
-            📋 Tabla de Datos Filtrados e Inspector
-          </button>
-        </div>
-
-        <!-- VISTA DE BUSCADOR POR PÁGINAS -->
-        <div id="tabContentPages" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <!-- Listado de Coincidencias -->
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[560px]">
-            <h3 class="text-sm font-bold text-slate-800 pb-3 border-b border-slate-100 flex justify-between items-center">
-              <span>Coincidencias por Página</span>
-              <span class="text-[11px] font-normal text-slate-400">Haz clic para abrir visualizador</span>
-            </h3>
-
-            <!-- Contenedor con Scroll para Resultados -->
-            <div id="resultsList" class="flex-1 overflow-y-auto mt-3 pr-1 flex flex-col gap-3">
-              <div class="text-center py-16 text-slate-400 flex flex-col items-center gap-2">
-                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
-                <p class="text-sm font-semibold">Esperando análisis o consulta...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Previsualizador de Página del PDF -->
-          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[560px]">
-            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-              <h3 class="text-sm font-bold text-slate-800">Visualizador de Página</h3>
-              <span id="activePageIndicator" class="bg-slate-100 text-slate-700 text-[11px] px-2.5 py-1 rounded-md font-bold">Sin selección</span>
-            </div>
-
-            <!-- Contenedor del Canvas y del Texto Contextual -->
-            <div class="flex-1 flex flex-col gap-3 mt-3 overflow-hidden">
-              
-              <!-- Selector de Vista -->
-              <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
-                <button id="viewModeVisual" class="py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none">Página Real (Render)</button>
-                <button id="viewModeText" class="py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none">Texto Plano</button>
-              </div>
-
-              <!-- Contenedor del Visor Real -->
-              <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-slate-100 relative flex items-center justify-center p-2">
-                
-                <!-- Loader de Rendering -->
-                <div id="renderLoader" class="hidden absolute inset-0 bg-slate-900/10 backdrop-blur-xs flex items-center justify-center z-10">
-                  <div class="bg-white px-4 py-2.5 rounded-lg shadow-md flex items-center gap-2 text-xs font-medium text-slate-700">
-                    <span class="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></span>
-                    Obteniendo vista...
-                  </div>
-                </div>
-
-                <!-- Vista Visual: Canvas del PDF -->
-                <div id="visualCanvasContainer" class="w-full h-full overflow-auto flex justify-center items-start">
-                  <canvas id="pdfPageCanvas" class="shadow-sm border border-slate-200 max-w-full bg-white"></canvas>
-                </div>
-
-                <!-- Vista de Texto: Texto Plano con coincidencia destacada -->
-                <div id="plainTextContainer" class="hidden w-full h-full overflow-y-auto p-4 bg-slate-900 text-slate-100 font-mono text-[11px] leading-relaxed rounded-md whitespace-pre-wrap selection:bg-indigo-500">
-                  Selecciona una coincidencia para visualizar el texto extraído de la página.
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-
-        <!-- VISTA DE TABLA DE DATOS EXTRAÍDOS (ASISTENTE DE COLUMNAS) -->
-        <div id="tabContentTable" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
-          
-          <!-- Controles de Mapeo Manual (Visibles solo si se activa modo manual) -->
-          <div id="manualMappingContainer" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-200">
-              <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-                </svg>
-                Asistente de Separación Manual de Columnas
-              </span>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-              
-              <div class="flex flex-col gap-1 md:col-span-1">
-                <label for="selectDelimiter" class="text-[10px] font-bold text-slate-600">Separador</label>
-                <select id="selectDelimiter" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                  <option value="multiSpace" selected>Múltiples Espacios</option>
-                  <option value="singleSpace">Espacio Simple</option>
-                  <option value="tab">Tabulador (\t)</option>
-                  <option value="comma">Coma (,)</option>
-                  <option value="pipe">Barra Vertical (|)</option>
-                </select>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <label for="colMapFecha" class="text-[10px] font-bold text-slate-600">Fecha</label>
-                <select id="colMapFecha" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"></select>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <label for="colMapOperacion" class="text-[10px] font-bold text-slate-600">N° Operación</label>
-                <select id="colMapOperacion" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"></select>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <label for="colMapDescripcion" class="text-[10px] font-bold text-slate-600">Descripción</label>
-                <select id="colMapDescripcion" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"></select>
-              </div>
-
-              <div class="flex flex-col gap-1">
-                <label for="colMapAbonos" class="text-[10px] font-bold text-slate-600">Abonos ($)</label>
-                <select id="colMapAbonos" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"></select>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Cabecera de la Tabla Interactiva con selectores globales -->
-          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-            <div>
-              <h3 class="text-sm font-bold text-slate-800">Filas Coincidentes Encontradas</h3>
-              <p class="text-xs text-slate-500">Puedes editar o corregir la información antes de generar tus reportes.</p>
-            </div>
-            <div class="flex gap-2">
-              <button id="btnSelectAllRows" class="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors">
-                Seleccionar Todo
-              </button>
-              <button id="btnDeselectAllRows" class="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors">
-                Desmarcar Todo
-              </button>
-              <button id="btnAddManualRow" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                Añadir Fila Manual
-              </button>
-            </div>
-          </div>
-
-          <!-- Contenedor de la Tabla -->
-          <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-[400px] overflow-y-auto bg-white">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase font-bold tracking-wider">
-                  <th class="py-3 px-4 w-12 text-center">Incluir</th>
-                  <th class="py-3 px-4 w-12 text-center">Pág</th>
-                  <th class="py-3 px-4 w-32">Fecha</th>
-                  <th class="py-3 px-4 w-32">N° Operación</th>
-                  <th class="py-3 px-4">Descripción</th>
-                  <th class="py-3 px-4 w-28 text-right">Abonos ($)</th>
-                  <th class="py-3 px-4 w-12 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="transactionsTableBody" class="divide-y divide-slate-100 text-slate-700">
-                <tr>
-                  <td colspan="7" class="text-center py-10 text-slate-400 italic">No hay registros coincidentes. Sube un PDF o ingresa un término en el buscador.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Resumen de Totales Activos -->
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
-            <span class="text-slate-500 font-medium">Filas Coincidentes Seleccionadas: <strong id="tableSummaryCount" class="text-indigo-700 font-bold">0</strong></span>
-            <span class="text-slate-700 font-bold">Monto Total Abonos: <span id="tableSummarySum" class="text-emerald-700 text-sm font-extrabold">$0.00</span></span>
-          </div>
-
-        </div>
-
-      </section>
-
+    <div class="twrap" id="twrap">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <h3>Sin archivo cargado</h3>
+        <p>Sube una cartola PDF de BancoEstado CuentaRUT y busca por descripción.</p>
+      </div>
     </div>
-
-  </main>
-
-  <!-- Pie de Página -->
-  <footer class="bg-slate-900 text-slate-400 text-xs py-5 border-t border-slate-800 mt-8">
-    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-      <p>&copy; 2026 PDF Deep Search & Export. Procesamiento local de alta precisión.</p>
-      <p class="flex items-center gap-1.5 text-slate-500 font-medium">
-        <span>Garantía de análisis total de todas las páginas</span>
-      </p>
-    </div>
-  </footer>
-
-  <!-- Notificaciones Flotantes Personalizadas -->
-  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 translate-y-20 opacity-0 pointer-events-none transition-all duration-300">
-    <div id="toastIcon" class="text-indigo-400"></div>
-    <div class="flex-1">
-      <p id="toastMessage" class="text-xs sm:text-sm font-medium"></p>
-    </div>
-    <button id="btnDismissToast" class="text-slate-400 hover:text-white ml-2">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-      </svg>
-    </button>
   </div>
 
-  <!-- JavaScript del Motor de PDF y Lógica de Búsqueda -->
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+</div>
 
-    // Estados de la Aplicación
-    let currentPdfDoc = null;
-    let pdfFileName = "";
-    let extractedPages = []; // [{ pageNum: Int, text: String, charsCount: Int }]
-    let rawPdfRows = []; // [{ id: String, page: Int, rawText: String, cols: Array }]
-    let mappedTransactions = []; // [{ id, page, fecha, operacion, descripcion, abono, active: Boolean }]
-    let activeResultPageNum = null;
-    let currentViewMode = "visual"; // "visual" o "text"
-    let currentActiveTab = "pages"; // "pages" o "table"
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // Elementos DOM
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const progressStatus = document.getElementById('progressStatus');
-    const progressPercent = document.getElementById('progressPercent');
-    const indexLogConsole = document.getElementById('indexLogConsole');
-    const docMetaInfo = document.getElementById('docMetaInfo');
-    const loadedDocName = document.getElementById('loadedDocName');
-    const loadedDocPages = document.getElementById('loadedDocPages');
-    const badgeTotalLines = document.getElementById('badgeTotalLines');
-    const btnReset = document.getElementById('btnReset');
-    const searchWorkspace = document.getElementById('searchWorkspace');
-    
-    // Pestañas
-    const tabButtonPages = document.getElementById('tabButtonPages');
-    const tabButtonTable = document.getElementById('tabButtonTable');
-    const tabContentPages = document.getElementById('tabContentPages');
-    const tabContentTable = document.getElementById('tabContentTable');
+let allRows=[];   // all parsed {fecha,nop,desc,abono,page}
+let results=[];
+let lastQ='';
+let sortCol='page';
+let sortAsc=true;
 
-    // Búsqueda
-    const searchQueryInput = document.getElementById('searchQuery');
-    const btnClearText = document.getElementById('btnClearText');
-    const btnSearch = document.getElementById('btnSearch');
-    const btnResetFilters = document.getElementById('btnResetFilters');
-    const resultsCount = document.getElementById('resultsCount');
-    const resultsList = document.getElementById('resultsList');
+/* ─── DRAG & DROP ─── */
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')loadPDF(f);});
+document.getElementById('fi').addEventListener('change',e=>{if(e.target.files[0])loadPDF(e.target.files[0])});
 
-    // Mapeador
-    const selectDelimiter = document.getElementById('selectDelimiter');
-    const colMapFecha = document.getElementById('colMapFecha');
-    const colMapOperacion = document.getElementById('colMapOperacion');
-    const colMapDescripcion = document.getElementById('colMapDescripcion');
-    const colMapAbonos = document.getElementById('colMapAbonos');
-    const btnApplyMapping = document.getElementById('btnApplyMapping');
-    const manualMappingContainer = document.getElementById('manualMappingContainer');
+/* ─── LOAD PDF ─── */
+async function loadPDF(file){
+  document.getElementById('fname').textContent=file.name;
+  document.getElementById('fb').classList.add('on');
+  dz.classList.add('ok');
+  dz.onclick=null;
 
-    // Tabla
-    const btnSelectAllRows = document.getElementById('btnSelectAllRows');
-    const btnDeselectAllRows = document.getElementById('btnDeselectAllRows');
-    const btnAddManualRow = document.getElementById('btnAddManualRow');
-    const transactionsTableBody = document.getElementById('transactionsTableBody');
-    const tableSummaryCount = document.getElementById('tableSummaryCount');
-    const tableSummarySum = document.getElementById('tableSummarySum');
-    const btnExportExcel = document.getElementById('btnExportExcel');
-    const btnExportPDF = document.getElementById('btnExportPDF');
+  const prog=document.getElementById('prog');
+  const pfi=document.getElementById('pfi');
+  const plb=document.getElementById('plb');
+  prog.classList.add('on'); pfi.style.width='3%'; plb.textContent='Leyendo archivo…';
 
-    // Visor
-    const activePageIndicator = document.getElementById('activePageIndicator');
-    const viewModeVisualBtn = document.getElementById('viewModeVisual');
-    const viewModeTextBtn = document.getElementById('viewModeText');
-    const pdfPageCanvas = document.getElementById('pdfPageCanvas');
-    const canvasContext = pdfPageCanvas.getContext('2d');
-    const visualCanvasContainer = document.getElementById('visualCanvasContainer');
-    const plainTextContainer = document.getElementById('plainTextContainer');
-    const renderLoader = document.getElementById('renderLoader');
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const total=pdf.numPages;
 
-    // Toast
-    const toastNotification = document.getElementById('toastNotification');
-    const toastMessage = document.getElementById('toastMessage');
-    const toastIcon = document.getElementById('toastIcon');
-    const btnDismissToast = document.getElementById('btnDismissToast');
+  // Extract all text with layout (preserving positions via x coords)
+  allRows=[];
+  let fullText='';
 
-    // --- MANEJO DE NOTIFICACIONES ---
-    function showToast(message, type = 'info') {
-      toastMessage.textContent = message;
-      if (type === 'error') {
-        toastIcon.innerHTML = `<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
-      } else if (type === 'success') {
-        toastIcon.innerHTML = `<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-      } else {
-        toastIcon.innerHTML = `<svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
-      }
-      toastNotification.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
-      toastNotification.classList.add('translate-y-0', 'opacity-100');
-      setTimeout(dismissToast, 5000);
-    }
+  for(let i=1;i<=total;i++){
+    const pg=await pdf.getPage(i);
+    // Get text items with positions
+    const content=await pg.getTextContent();
+    const pageText=extractLayoutText(content.items);
+    fullText+=pageText+'\f';
+    pfi.style.width=Math.round(3+(i/total)*90)+'%';
+    plb.textContent=`Analizando página ${i} de ${total}…`;
+  }
 
-    function dismissToast() {
-      toastNotification.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-      toastNotification.classList.remove('translate-y-0', 'opacity-100');
-    }
-    btnDismissToast.addEventListener('click', dismissToast);
+  // Parse rows from full text
+  allRows=parseCartola(fullText);
 
-    // --- EVENTOS DRAG & DROP ---
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.add('border-indigo-600', 'bg-indigo-50/50');
-      }, false);
+  const withAbono=allRows.filter(r=>r.abono!==null);
+  document.getElementById('fpages').textContent=`${total} páginas · ${withAbono.length} abonos detectados`;
+  pfi.style.width='100%';
+  plb.textContent=`✓ Listo — ${allRows.length} movimientos procesados`;
+  setTimeout(()=>prog.classList.remove('on'),2500);
+  document.getElementById('sbtn').disabled=false;
+  setEmpty('ready');
+  document.getElementById('ttitle').textContent='PDF cargado — ingresa una búsqueda';
+}
+
+/* ─── EXTRACT LAYOUT TEXT ─── */
+// Reconstruct lines sorted by Y, items sorted by X within each line
+function extractLayoutText(items){
+  // Group by rounded Y
+  const lines={};
+  items.forEach(it=>{
+    const y=Math.round(it.transform[5]);
+    if(!lines[y]) lines[y]=[];
+    lines[y].push({x:it.transform[4], str:it.str});
+  });
+  // Sort lines top→bottom (descending Y in PDF coords)
+  const ys=Object.keys(lines).map(Number).sort((a,b)=>b-a);
+  return ys.map(y=>{
+    const sorted=lines[y].sort((a,b)=>a.x-b.x);
+    // Build spaced string preserving column gaps
+    let result='';
+    let lastX=0;
+    sorted.forEach(it=>{
+      const gap=it.x-lastX;
+      if(result && gap>8) result+=' '.repeat(Math.min(Math.round(gap/5),20));
+      result+=it.str;
+      lastX=it.x+(it.str.length*6);
     });
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('border-indigo-600', 'bg-indigo-50/50');
-      }, false);
-    });
-    dropZone.addEventListener('drop', (e) => {
-      const files = e.dataTransfer.files;
-      if (files.length > 0) handleFileSelection(files[0]);
-    });
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleFileSelection(e.target.files[0]);
-    });
+    return result;
+  }).join('\n');
+}
 
-    function handleFileSelection(file) {
-      if (!file) return;
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        showToast("Extensión de archivo inválida. Sube un PDF.", "error");
-        return;
-      }
-      pdfFileName = file.name;
-      loadAndParsePDF(file);
-    }
+/* ─── PARSE CARTOLA ─── */
+// Format: DD/Mes  N°Op  Descripción   $Abono  [$Cargo]  [$Saldo]
+// Column positions (approx chars): Abono <68, Cargo 68-80, Saldo >80
+const FECHA_RE=/^[\s\f]*(\d{1,2}\/(?:Ene|Feb|Mar|Abr|May|Jun|Jul|Ago|Sep|Oct|Nov|Dic))\s+/;
+const AMT_RE=/\$([\d\.]+)/g;
+const SKIP_RE=/Fecha|Operaci[oó]n|CARTOLA|Cliente|Nombre\s|Saldo\s|Movimientos|Cartola\s|Subtotales|Total\s|N[°º]\s|RUT\s|Fecha\s(Inicio|Final|Emisi|y\s)|HERNANDEZ SANDRA|ARAYA HERNANDEZ/i;
 
-    function logToConsole(message, type = 'info') {
-      const logElement = document.createElement('div');
-      logElement.className = type === 'success' ? "text-emerald-400 font-semibold" : type === 'warn' ? "text-yellow-400" : "text-slate-300";
-      logElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-      indexLogConsole.appendChild(logElement);
-      indexLogConsole.scrollTop = indexLogConsole.scrollHeight;
-    }
+function parseAmt(s){ return parseInt(s.replace(/\./g,''),10)||0; }
 
-    // --- STREAMING_CHUNK:Reading PDF structure...
-    async function loadAndParsePDF(file) {
-      dropZone.classList.add('hidden');
-      progressContainer.classList.remove('hidden');
-      docMetaInfo.classList.add('hidden');
-      searchWorkspace.classList.add('hidden');
-      
-      extractedPages = [];
-      rawPdfRows = [];
-      mappedTransactions = [];
-      activeResultPageNum = null;
-      indexLogConsole.innerHTML = "";
-      
-      updateProgressBar(0, "Cargando archivo PDF local...");
-      logToConsole(`Abriendo archivo: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`);
+function parseCartola(text){
+  const lines=text.split('\n');
+  const rows=[];
+  let cur=null;
 
-      const reader = new FileReader();
-      reader.onload = async function() {
-        try {
-          const typedArray = new Uint8Array(this.result);
-          const loadingTask = pdfjsLib.getDocument(typedArray);
-          currentPdfDoc = await loadingTask.promise;
-          const totalPages = currentPdfDoc.numPages;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(SKIP_RE.test(line)){ if(cur){rows.push(cur);cur=null;} continue; }
 
-          logToConsole(`PDF cargado con éxito. Total de páginas: ${totalPages}`, "success");
+    const m=FECHA_RE.exec(line);
+    if(m){
+      if(cur) rows.push(cur);
+      const fecha=m[1];
+      const rest=line.slice(m.index+m[0].length);
 
-          // Procesar secuencialmente cada página de forma profunda
-          for (let i = 1; i <= totalPages; i++) {
-            updateProgressBar(15 + Math.floor((i / totalPages) * 75), `Leyendo página ${i} de ${totalPages}...`);
-            await new Promise(resolve => setTimeout(resolve, 5));
-
-            const page = await currentPdfDoc.getPage(i);
-            const textContent = await page.getTextContent();
-            
-            // Reconstruir líneas respetando la posición en Y coordinate
-            let items = textContent.items;
-            let linesMap = {};
-            items.forEach(item => {
-              let y = Math.round(item.transform[5]);
-              let foundY = Object.keys(linesMap).find(key => Math.abs(key - y) < 4);
-              if (foundY) {
-                linesMap[foundY].push(item);
-              } else {
-                linesMap[y] = [item];
-              }
-            });
-
-            let sortedY = Object.keys(linesMap).sort((a, b) => b - a);
-            let pageLinesText = [];
-
-            sortedY.forEach(y => {
-              let lineItems = linesMap[y].sort((a, b) => a.transform[4] - b.transform[4]);
-              let lineText = lineItems.map(item => item.str).join('   ').trim();
-              if (lineText.length > 0) {
-                pageLinesText.push(lineText);
-                rawPdfRows.push({
-                  id: 'raw_' + Math.random().toString(36).substr(2, 9),
-                  page: i,
-                  rawText: lineText
-                });
-              }
-            });
-
-            let fullPageRawText = pageLinesText.join('\n');
-            extractedPages.push({
-              pageNum: i,
-              text: fullPageRawText,
-              charsCount: fullPageRawText.length
-            });
-            logToConsole(`Pág. ${i}/${totalPages}: Indexadas ${pageLinesText.length} líneas de texto.`);
-          }
-
-          logToConsole(`Extracción completada. Se obtuvieron ${rawPdfRows.length} líneas totales.`, "success");
-          
-          // Dividir líneas crudas en columnas
-          applyColumnSplitting();
-          // Inicializar los dropdowns del mapeador
-          initMappingSelectors();
-          // Autodetectar mapeo sugerido
-          autoSuggestMapping();
-
-          updateProgressBar(100, "¡Análisis e Indexación completa!");
-          setTimeout(() => {
-            progressContainer.classList.add('hidden');
-            renderUIWithDocument(totalPages);
-          }, 600);
-
-        } catch (error) {
-          console.error("Fallo de lectura:", error);
-          logToConsole(`ERROR CRÍTICO: No se pudo analizar el PDF. ${error.message}`, "warn");
-          showToast("Error al indexar el PDF.", "error");
-          resetApplication();
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function updateProgressBar(percent, text) {
-      progressBar.style.width = `${percent}%`;
-      progressPercent.textContent = `${percent}%`;
-      progressStatus.textContent = text;
-    }
-
-    function applyColumnSplitting() {
-      const delimiterType = selectDelimiter.value;
-      let regex = /\s{3,}/; 
-      if (delimiterType === 'singleSpace') regex = /\s+/;
-      else if (delimiterType === 'tab') regex = /\t+/;
-      else if (delimiterType === 'comma') regex = /,+/;
-      else if (delimiterType === 'pipe') regex = /\|+/;
-
-      rawPdfRows.forEach(row => {
-        row.cols = row.rawText.split(regex).map(col => col.trim()).filter(col => col.length > 0);
-      });
-    }
-
-    function initMappingSelectors() {
-      let maxCols = 0;
-      rawPdfRows.forEach(row => {
-        if (row.cols.length > maxCols) maxCols = row.cols.length;
-      });
-
-      const selectors = [colMapFecha, colMapOperacion, colMapDescripcion, colMapAbonos];
-      selectors.forEach(select => {
-        select.innerHTML = "";
-        const omit = document.createElement("option");
-        omit.value = "-1";
-        omit.textContent = "Omitir (Usa algoritmo)";
-        select.appendChild(omit);
-
-        for (let j = 0; j < maxCols; j++) {
-          const opt = document.createElement("option");
-          opt.value = j.toString();
-          opt.textContent = `Columna ${j + 1}`;
-          select.appendChild(opt);
-        }
-      });
-    }
-
-    function autoSuggestMapping() {
-      let testRows = rawPdfRows.filter(row => row.cols.length >= 3).slice(0, 15);
-      let dateColIdx = -1, opColIdx = -1, abonoColIdx = -1, descColIdx = -1;
-      let maxCols = 0;
-      testRows.forEach(r => { if (r.cols.length > maxCols) maxCols = r.cols.length; });
-
-      for (let c = 0; c < maxCols; c++) {
-        let dateScore = 0, numScore = 0, moneyScore = 0, textScore = 0;
-        testRows.forEach(row => {
-          if (!row.cols[c]) return;
-          const val = row.cols[c];
-          if (/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/.test(val)) dateScore++;
-          else if (/^\d{5,12}$/.test(val)) numScore++;
-          else if (/(?:[-+]\s*)?(?:\$\s*)?\b\d{1,3}(?:[\.,]\d{3})*[\.,]\d{2}\b/.test(val)) moneyScore++;
-          else if (val.length > 5 && /[a-zA-Z]{4,}/.test(val)) textScore++;
-        });
-
-        if (dateScore > testRows.length * 0.3 && dateColIdx === -1) dateColIdx = c;
-        else if (moneyScore > testRows.length * 0.3 && abonoColIdx === -1) abonoColIdx = c;
-        else if (numScore > testRows.length * 0.3 && opColIdx === -1) opColIdx = c;
-        else if (textScore > testRows.length * 0.3 && descColIdx === -1) descColIdx = c;
+      // Extract amounts with positions
+      const amts=[];
+      let am;
+      AMT_RE.lastIndex=0;
+      while((am=AMT_RE.exec(rest))!==null){
+        // Position relative to full line
+        const pos=m[0].length+am.index;
+        amts.push({pos, val:parseAmt(am[1]), raw:am[0]});
       }
 
-      colMapFecha.value = dateColIdx !== -1 ? dateColIdx.toString() : "0";
-      colMapOperacion.value = opColIdx !== -1 ? opColIdx.toString() : "-1";
-      colMapDescripcion.value = descColIdx !== -1 ? descColIdx.toString() : "1";
-      colMapAbonos.value = abonoColIdx !== -1 ? abonoColIdx.toString() : "2";
+      // Clean text (remove amounts)
+      let clean=rest.replace(/\$[\d\.]+/g,' ').replace(/\s{2,}/g,' ').trim();
+      const parts=clean.split(/\s+/);
+      const nop=parts[0]||'';
+      const desc=parts.slice(1).join(' ').trim();
 
-      executeMapping();
-    }
-
-    // --- STREAMING_CHUNK:Parsing transaction lines with regex...
-    // Algoritmo Semántico Automatizado e Inteligente para parsear una fila
-    function parseRowIntelligently(rawText, pageNum, carryDate) {
-      let text = rawText.trim();
-      
-      // 1. Extraer Fecha
-      let fecha = "";
-      const dateRegex = /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\b/;
-      const dateRegexShort = /\b(\d{1,2}[\/\-\.]\d{1,2})\b/;
-      const dateRegexSpanish = /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+\d{4})\b/i;
-      
-      let mDate = text.match(dateRegex) || text.match(dateRegexSpanish) || text.match(dateRegexShort);
-      if (mDate) {
-        fecha = mDate[1];
-      } else {
-        fecha = carryDate || "S/F";
+      // Determine abono vs cargo by column position
+      // Abono col ~55-68, Cargo col ~68-80, Saldo col ~80+
+      let abono=null, cargo=null;
+      if(amts.length===1){
+        const {pos,val}=amts[0];
+        if(pos<68) abono=val; else cargo=val;
+      } else if(amts.length===2){
+        const {pos:p0,val:v0}=amts[0];
+        // second value is saldo (rightmost)
+        if(p0<68) abono=v0; else cargo=v0;
+        // ignore saldo
+      } else if(amts.length>=3){
+        const {pos:p0,val:v0}=amts[0];
+        const {pos:p1,val:v1}=amts[1];
+        if(p0<68) abono=v0; else cargo=v0;
+        if(p1>=68 && p1<82) cargo=v1;
       }
 
-      // 2. Extraer Abono / Monto Final
-      let abonoVal = 0;
-      let abonoStr = "";
-      const moneyRegex = /[-+]?\s*(?:\$\s*)?\b\d{1,3}(?:[\.,]\d{3})*(?:[\.,]\d{2})\b/g;
-      let moneyMatches = text.match(moneyRegex);
-      if (moneyMatches && moneyMatches.length > 0) {
-        let rawMoney = moneyMatches[moneyMatches.length - 1]; // Tomamos el de la extrema derecha (frecuente en transacciones)
-        let cleanM = rawMoney.replace(/[^\d\.,\-+]/g, '');
-        let isNegative = cleanM.startsWith('-');
-        cleanM = cleanM.replace(/[-+]/g, '');
-        
-        if (cleanM.includes(',') && cleanM.includes('.')) {
-          abonoVal = parseFloat(cleanM.replace(/\./g, '').replace(',', '.'));
-        } else if (cleanM.includes(',')) {
-          let parts = cleanM.split(',');
-          if (parts[parts.length - 1].length === 2) {
-            abonoVal = parseFloat(cleanM.replace(',', '.'));
-          } else {
-            abonoVal = parseFloat(cleanM.replace(/,/g, ''));
-          }
-        } else {
-          abonoVal = parseFloat(cleanM);
-        }
-        if (isNegative) abonoVal = -abonoVal;
-        abonoStr = rawMoney;
-      }
-
-      // 3. Extraer Número de Operación
-      let operacion = "N/D";
-      const opPrefixRegex = /(?:op(?:eraci[oó]n|er)?\.?|ref(?:erencia)?\.?|n(?:ro|um|°)?\.?|trx|transacci[oó]n|id|doc)\s*[:#\-]?\s*([a-zA-Z0-9]{4,15})\b/i;
-      let mOp = text.match(opPrefixRegex);
-      if (mOp) {
-        operacion = mOp[1];
-      } else {
-        const digitsRegex = /\b\d{5,12}\b/g;
-        let digitMatches = text.match(digitsRegex);
-        if (digitMatches) {
-          for (let dMatch of digitMatches) {
-            if (!fecha.includes(dMatch) && (!abonoStr || !abonoStr.includes(dMatch))) {
-              operacion = dMatch;
-              break;
-            }
-          }
-        }
-      }
-
-      // 4. Extraer Descripción (Limpieza del resto de la línea)
-      let descripcion = text;
-      if (mDate) descripcion = descripcion.replace(mDate[0], "");
-      if (mOp) descripcion = descripcion.replace(mOp[0], "");
-      else if (operacion !== "N/D") descripcion = descripcion.replace(operacion, "");
-      if (abonoStr) descripcion = descripcion.replace(abonoStr, "");
-      
-      // Sanitizar texto restante
-      descripcion = descripcion.replace(/[\$\,\-\/\s#]+/g, " ").trim();
-      if (descripcion.length === 0) {
-        descripcion = "Transacción / Transferencia";
-      }
-
-      return {
-        id: 'trx_' + Math.random().toString(36).substr(2, 9),
-        page: pageNum,
-        fecha: fecha,
-        operacion: operacion,
-        descripcion: descripcion,
-        abono: abonoVal,
-        active: true
-      };
-    }
-
-    // --- STREAMING_CHUNK:Structuring and mapping transactions...
-    // Ejecuta el mapeado estructurado de los datos crudos del PDF
-    function executeMapping() {
-      const mode = document.querySelector('input[name="extractionMode"]:checked').value;
-      mappedTransactions = [];
-      let carryDate = "S/F";
-
-      if (mode === 'smart') {
-        // Mapeo automático inteligente lineal
-        rawPdfRows.forEach(row => {
-          const parsed = parseRowIntelligently(row.rawText, row.page, carryDate);
-          if (parsed.fecha !== "S/F") carryDate = parsed.fecha;
-          
-          // Excluir líneas que son meros títulos o encabezados vacíos
-          const isHeader = /saldo|balance|resumen|periodo|titular|cuenta|p[aá]gina|total/i.test(parsed.descripcion) && parsed.abono === 0;
-          if (parsed.descripcion.length > 2 && !isHeader) {
-            mappedTransactions.push(parsed);
-          }
-        });
-      } else {
-        // Mapeo manual por posición de columnas
-        const idxFecha = parseInt(colMapFecha.value, 10);
-        const idxOp = parseInt(colMapOperacion.value, 10);
-        const idxDesc = parseInt(colMapDescripcion.value, 10);
-        const idxAbonos = parseInt(colMapAbonos.value, 10);
-
-        rawPdfRows.forEach(row => {
-          if (row.cols.length === 0) return;
-
-          let fecha = "S/F";
-          if (idxFecha !== -1 && row.cols[idxFecha]) {
-            fecha = row.cols[idxFecha];
-            if (/\b\d{1,2}/.test(fecha)) carryDate = fecha;
-            else fecha = carryDate;
-          } else {
-            fecha = carryDate;
-          }
-
-          let operacion = idxOp !== -1 && row.cols[idxOp] ? row.cols[idxOp] : "N/D";
-          let descripcion = idxDesc !== -1 && row.cols[idxDesc] ? row.cols[idxDesc] : row.rawText.substring(0, 80);
-
-          let abonoVal = 0;
-          if (idxAbonos !== -1 && row.cols[idxAbonos]) {
-            const moneyStr = row.cols[idxAbonos];
-            let cleanM = moneyStr.replace(/[^\d\.,\-+]/g, '');
-            let isNegative = cleanM.startsWith('-');
-            cleanM = cleanM.replace(/[-+]/g, '');
-
-            if (cleanM.length > 0) {
-              if (cleanM.includes(',') && cleanM.includes('.')) {
-                abonoVal = parseFloat(cleanM.replace(/\./g, '').replace(',', '.'));
-              } else if (cleanM.includes(',')) {
-                const parts = cleanM.split(',');
-                if (parts[parts.length - 1].length === 2) {
-                  abonoVal = parseFloat(cleanM.replace(',', '.'));
-                } else {
-                  abonoVal = parseFloat(cleanM.replace(/,/g, ''));
-                }
-              } else {
-                abonoVal = parseFloat(cleanM);
-              }
-              if (isNegative) abonoVal = -abonoVal;
-            }
-          }
-
-          const isHeader = /saldo|balance|resumen|periodo|titular|cuenta|p[aá]gina|total/i.test(descripcion) && abonoVal === 0;
-          if (descripcion.length > 2 && !isHeader) {
-            mappedTransactions.push({
-              id: 'trx_' + Math.random().toString(36).substr(2, 9),
-              page: row.page,
-              fecha: fecha,
-              operacion: operacion,
-              descripcion: descripcion,
-              abono: abonoVal,
-              active: true
-            });
-          }
-        });
+      cur={fecha,nop,desc,abono,cargo,page:0,_lineIdx:i};
+    } else if(cur){
+      const t=line.trim();
+      if(!t) continue;
+      // Skip if line looks like a page header repeat or amount-only
+      if(/^\$[\d\.]+/.test(t)) continue;
+      if(SKIP_RE.test(t)) continue;
+      if(FECHA_RE.test(t)) continue;
+      if(t.length>0 && t.length<50 && !/\d{8,}/.test(t)){
+        cur.desc=(cur.desc+' '+t).replace(/\s{2,}/g,' ').trim();
       }
     }
+  }
+  if(cur) rows.push(cur);
 
-    function renderUIWithDocument(totalPages) {
-      loadedDocName.textContent = pdfFileName;
-      loadedDocPages.textContent = `(${totalPages} ${totalPages === 1 ? 'página' : 'páginas'} analizadas)`;
-      badgeTotalLines.textContent = `${rawPdfRows.length} líneas de datos crudas`;
-      
-      updateSummaryMetrics();
-      docMetaInfo.classList.remove('hidden');
-      searchWorkspace.classList.remove('hidden');
+  // Assign approximate page numbers
+  // Re-parse with page tracking using form-feed
+  const pages=text.split('\f');
+  rows.forEach(r=>{
+    // estimate page from line index
+    r.page=r._lineIdx?1:1;
+  });
+  // Better: re-assign pages by scanning text with \f
+  assignPages(rows, text);
 
-      switchTab("pages");
-      performSearch();
+  return rows;
+}
+
+function assignPages(rows, text){
+  const lines=text.split('\n');
+  let page=1;
+  let ri=0;
+  for(let i=0;i<lines.length&&ri<rows.length;i++){
+    if(lines[i].includes('\f')) page++;
+    if(rows[ri]._lineIdx===i){
+      rows[ri].page=page;
+      ri++;
     }
-
-    function updateSummaryMetrics() {
-      const query = searchQueryInput.value.trim().toLowerCase();
-      // Filtrar transacciones estrictamente por la búsqueda para calcular los totales correctos
-      const filteredActive = mappedTransactions.filter(t => {
-        if (!t.active) return false;
-        if (query.length === 0) return true;
-        return t.fecha.toLowerCase().includes(query) ||
-               t.operacion.toLowerCase().includes(query) ||
-               t.descripcion.toLowerCase().includes(query) ||
-               t.abono.toString().includes(query);
-      });
-
-      tableSummaryCount.textContent = filteredActive.length;
-      const totalSum = filteredActive.reduce((acc, curr) => acc + curr.abono, 0);
-      tableSummarySum.textContent = `$${totalSum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-
-    function switchTab(tabId) {
-      currentActiveTab = tabId;
-      if (tabId === "pages") {
-        tabButtonPages.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700 shadow-2xs";
-        tabButtonTable.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50";
-        tabContentPages.classList.remove('hidden');
-        tabContentTable.classList.add('hidden');
-      } else {
-        tabButtonTable.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700 shadow-2xs";
-        tabButtonPages.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50";
-        tabContentTable.classList.remove('hidden');
-        tabContentPages.classList.add('hidden');
-        renderTransactionsTable();
-      }
-    }
-
-    tabButtonPages.addEventListener('click', () => switchTab("pages"));
-    tabButtonTable.addEventListener('click', () => switchTab("table"));
-
-    // --- STREAMING_CHUNK:Filtering and displaying search results...
-    // Realiza la búsqueda y filtrado de forma simultánea en todas las pantallas
-    function performSearch() {
-      const query = searchQueryInput.value.trim().toLowerCase();
-      const filteredResults = [];
-
-      extractedPages.forEach(page => {
-        let textMatches = true;
-        if (query.length > 0) {
-          textMatches = page.text.toLowerCase().includes(query);
-        }
-
-        if (textMatches) {
-          let snippet = "";
-          if (query.length > 0) {
-            const index = page.text.toLowerCase().indexOf(query);
-            const start = Math.max(0, index - 40);
-            const end = Math.min(page.text.length, index + query.length + 50);
-            snippet = page.text.slice(start, end);
-            if (start > 0) snippet = "..." + snippet;
-            if (end < page.text.length) snippet = snippet + "...";
-          } else {
-            snippet = page.text.substring(0, 100) + (page.text.length > 100 ? "..." : "");
-          }
-
-          filteredResults.push({
-            pageNum: page.pageNum,
-            fullText: page.text,
-            snippet: snippet,
-            isEmpty: page.charsCount === 0
-          });
-        }
-      });
-
-      renderResultsList(filteredResults, query);
-      renderTransactionsTable();
-    }
-
-    function renderResultsList(results, activeQuery) {
-      resultsCount.textContent = results.length;
-      resultsList.innerHTML = "";
-
-      if (results.length === 0) {
-        resultsList.innerHTML = `
-          <div class="text-center py-20 text-slate-400">
-            <svg class="w-12 h-12 text-slate-300 mx-auto mb-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <p class="text-sm font-bold text-slate-600">Sin coincidencias para "${activeQuery}"</p>
-          </div>
-        `;
-        return;
-      }
-
-      results.forEach(res => {
-        const card = document.createElement('div');
-        card.className = `p-4 rounded-xl border transition-all cursor-pointer text-left flex flex-col gap-2 ${
-          activeResultPageNum === res.pageNum 
-            ? 'bg-indigo-50/75 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20' 
-            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-slate-300'
-        }`;
-        
-        let highlightedSnippet = res.snippet;
-        if (activeQuery.length > 0 && !res.isEmpty) {
-          const regex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
-          highlightedSnippet = res.snippet.replace(regex, '<mark class="highlight-match">$1</mark>');
-        }
-
-        const trxsOnPage = mappedTransactions.filter(t => {
-          const pageMatches = t.page === res.pageNum;
-          if (activeQuery.length === 0) return pageMatches;
-          return pageMatches && (
-            t.fecha.toLowerCase().includes(activeQuery) ||
-            t.operacion.toLowerCase().includes(activeQuery) ||
-            t.descripcion.toLowerCase().includes(activeQuery) ||
-            t.abono.toString().includes(activeQuery)
-          );
-        });
-
-        card.innerHTML = `
-          <div class="flex justify-between items-center">
-            <div class="flex items-center gap-2">
-              <span class="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-md">Pág. ${res.pageNum}</span>
-              <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">${trxsOnPage.length} filas</span>
-            </div>
-            <span class="text-[11px] text-slate-400 font-medium">${res.fullText.length} carac.</span>
-          </div>
-          <p class="text-xs text-slate-600 font-normal italic bg-white p-2.5 rounded-lg border border-slate-100 line-clamp-2 leading-relaxed">${highlightedSnippet}</p>
-        `;
-
-        card.addEventListener('click', () => {
-          selectActiveResult(res.pageNum);
-        });
-        resultsList.appendChild(card);
-      });
-
-      if (results.length > 0 && !activeResultPageNum) {
-        selectActiveResult(results[0].pageNum);
-      }
-    }
-
-    function selectActiveResult(pageNum) {
-      activeResultPageNum = pageNum;
-      activePageIndicator.textContent = `Página ${pageNum} de ${currentPdfDoc.numPages}`;
-      performSearchKeepSelection();
-      renderActivePage();
-    }
-
-    function performSearchKeepSelection() {
-      const query = searchQueryInput.value.trim().toLowerCase();
-      const filteredResults = [];
-
-      extractedPages.forEach(page => {
-        let textMatches = true;
-        if (query.length > 0) textMatches = page.text.toLowerCase().includes(query);
-
-        if (textMatches) {
-          let snippet = "";
-          if (query.length > 0) {
-            const index = page.text.toLowerCase().indexOf(query);
-            const start = Math.max(0, index - 40);
-            const end = Math.min(page.text.length, index + query.length + 50);
-            snippet = page.text.slice(start, end);
-            if (start > 0) snippet = "..." + snippet;
-            if (end < page.text.length) snippet = snippet + "...";
-          } else {
-            snippet = page.text.substring(0, 100) + (page.text.length > 100 ? "..." : "");
-          }
-
-          filteredResults.push({
-            pageNum: page.pageNum,
-            fullText: page.text,
-            snippet: snippet,
-            isEmpty: page.charsCount === 0
-          });
-        }
-      });
-      renderResultsList(filteredResults, query);
-    }
-
-    async function renderActivePage() {
-      if (!currentPdfDoc || !activeResultPageNum) return;
-
-      const pageData = extractedPages.find(p => p.pageNum === activeResultPageNum);
-      if (pageData) {
-        if (pageData.charsCount === 0) {
-          plainTextContainer.innerHTML = `<span class="text-slate-400 italic">No se pudo extraer texto plano de esta página. Usa el visualizador.</span>`;
-        } else {
-          const query = searchQueryInput.value.trim();
-          let formattedText = pageData.text;
-          if (query.length > 0) {
-            const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
-            formattedText = pageData.text.replace(regex, '<mark class="bg-yellow-300 text-slate-900 px-1 font-bold rounded-xs">$1</mark>');
-          }
-          plainTextContainer.innerHTML = formattedText;
-        }
-      }
-
-      renderLoader.classList.remove('hidden');
-      try {
-        const page = await currentPdfDoc.getPage(activeResultPageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
-        pdfPageCanvas.height = viewport.height;
-        pdfPageCanvas.width = viewport.width;
-
-        const renderContext = { canvasContext: canvasContext, viewport: viewport };
-        await page.render(renderContext).promise;
-      } catch (error) {
-        console.error("Error al pintar canvas:", error);
-      } finally {
-        renderLoader.classList.add('hidden');
-      }
-    }
-
-    // --- STREAMING_CHUNK:Rendering strict table data...
-    // Pinta la tabla de datos aplicando el filtro de búsqueda estricto
-    function renderTransactionsTable() {
-      transactionsTableBody.innerHTML = "";
-      const query = searchQueryInput.value.trim().toLowerCase();
-
-      // FILTRADO ESTRICTO: Solo mostramos lo que coincide con el término
-      const filteredTrxs = mappedTransactions.filter(t => {
-        if (query.length === 0) return true; // Si está vacío muestra todo
-        return t.fecha.toLowerCase().includes(query) ||
-               t.operacion.toLowerCase().includes(query) ||
-               t.descripcion.toLowerCase().includes(query) ||
-               t.abono.toString().includes(query);
-      });
-
-      if (filteredTrxs.length === 0) {
-        transactionsTableBody.innerHTML = `
-          <tr>
-            <td colspan="7" class="text-center py-10 text-slate-400 italic">
-              No se encontraron filas con el filtro de búsqueda "${query}".
-            </td>
-          </tr>
-        `;
-        tableSummaryCount.textContent = "0";
-        tableSummarySum.textContent = "$0.00";
-        return;
-      }
-
-      filteredTrxs.forEach(t => {
-        const row = document.createElement('tr');
-        row.className = `transition-colors ${t.active ? 'bg-white hover:bg-indigo-50/20' : 'bg-slate-50/50 hover:bg-slate-100 opacity-60'}`;
-        
-        row.innerHTML = `
-          <td class="py-2.5 px-4 text-center">
-            <input type="checkbox" ${t.active ? 'checked' : ''} onchange="toggleRowActive('${t.id}')" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" />
-          </td>
-          <td class="py-2.5 px-4 text-center font-bold text-slate-500">${t.page}</td>
-          <td class="py-2.5 px-4">
-            <input type="text" value="${t.fecha}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'fecha', this.value)" />
-          </td>
-          <td class="py-2.5 px-4">
-            <input type="text" value="${t.operacion}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'operacion', this.value)" />
-          </td>
-          <td class="py-2.5 px-4">
-            <input type="text" value="${t.descripcion}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'descripcion', this.value)" />
-          </td>
-          <td class="py-2.5 px-4 text-right">
-            <input type="number" step="0.01" value="${t.abono}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 text-right font-bold text-indigo-700 transition-all" onchange="updateTransactionField('${t.id}', 'abono', this.value)" />
-          </td>
-          <td class="py-2.5 px-4 text-center">
-            <button onclick="deleteTransactionRow('${t.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>
-          </td>
-        `;
-        transactionsTableBody.appendChild(row);
-      });
-
-      updateSummaryMetrics();
-    }
-
-    window.toggleRowActive = function(id) {
-      const idx = mappedTransactions.findIndex(t => t.id === id);
-      if (idx !== -1) {
-        mappedTransactions[idx].active = !mappedTransactions[idx].active;
-        renderTransactionsTable();
-      }
-    };
-
-    window.updateTransactionField = function(id, field, value) {
-      const idx = mappedTransactions.findIndex(t => t.id === id);
-      if (idx !== -1) {
-        if (field === 'abono') mappedTransactions[idx][field] = parseFloat(value) || 0;
-        else mappedTransactions[idx][field] = value;
-        updateSummaryMetrics();
-      }
-    };
-
-    window.deleteTransactionRow = function(id) {
-      mappedTransactions = mappedTransactions.filter(t => t.id !== id);
-      renderTransactionsTable();
-      showToast("Fila removida de la sesión actual.", "info");
-    };
-
-    btnAddManualRow.addEventListener('click', () => {
-      const newTrx = {
-        id: 'trx_' + Math.random().toString(36).substr(2, 9),
-        page: activeResultPageNum || 1,
-        fecha: new Date().toLocaleDateString('es-ES'),
-        operacion: "MANUAL",
-        descripcion: "Fila manual añadida",
-        abono: 0.00,
-        active: true
-      };
-      mappedTransactions.unshift(newTrx);
-      renderTransactionsTable();
-      showToast("Fila manual insertada.", "success");
-    });
-
-    btnSelectAllRows.addEventListener('click', () => {
-      mappedTransactions.forEach(t => t.active = true);
-      renderTransactionsTable();
-    });
-
-    btnDeselectAllRows.addEventListener('click', () => {
-      mappedTransactions.forEach(t => t.active = false);
-      renderTransactionsTable();
-    });
-
-    // Control de tipo de procesamiento (Inteligente vs Manual)
-    document.querySelectorAll('input[name="extractionMode"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        if (e.target.value === 'manual') {
-          manualMappingContainer.classList.remove('hidden');
-        } else {
-          manualMappingContainer.classList.add('hidden');
-        }
-        executeMapping();
-        renderTransactionsTable();
-      });
-    });
-
-    // Aplicar mapeo manual
-    btnApplyMapping.addEventListener('click', () => {
-      applyColumnSplitting();
-      executeMapping();
-      renderTransactionsTable();
-      showToast("Mapeo manual aplicado.", "success");
-    });
-
-    // Cambios dinámicos en mappers
-    [selectDelimiter, colMapFecha, colMapOperacion, colMapDescripcion, colMapAbonos].forEach(element => {
-      element.addEventListener('change', () => {
-        applyColumnSplitting();
-        executeMapping();
-        renderTransactionsTable();
-      });
-    });
-
-    // --- STREAMING_CHUNK:Exporting structured data...
-    // --- EXPORTAR A EXCEL (XLSX) ---
-    btnExportExcel.addEventListener('click', () => {
-      const query = searchQueryInput.value.trim().toLowerCase();
-      
-      // Filtrar transacciones estrictamente por la búsqueda y que estén activas
-      const activeFiltered = mappedTransactions.filter(t => {
-        if (!t.active) return false;
-        if (query.length === 0) return true;
-        return t.fecha.toLowerCase().includes(query) ||
-               t.operacion.toLowerCase().includes(query) ||
-               t.descripcion.toLowerCase().includes(query) ||
-               t.abono.toString().includes(query);
-      });
-
-      if (activeFiltered.length === 0) {
-        showToast("No hay registros filtrados o activos para exportar.", "error");
-        return;
-      }
-
-      try {
-        const excelRows = activeFiltered.map(t => ({
-          "Página PDF": t.page,
-          "Fecha": t.fecha,
-          "N° Operación": t.operacion,
-          "Descripción": t.descripcion,
-          "Abono ($)": t.abono
-        }));
-
-        const worksheet = XLSX.utils.json_to_sheet(excelRows);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Filtrado Estricto");
-
-        worksheet["!cols"] = [
-          { wch: 12 }, { wch: 18 }, { wch: 20 }, { wch: 50 }, { wch: 16 }
-        ];
-
-        const excelFileName = pdfFileName.replace(/\.[^/.]+$/, "") + "_Filtrado_Estricto.xlsx";
-        XLSX.writeFile(workbook, excelFileName);
-        showToast(`Excel generado: ${excelFileName}`, "success");
-      } catch (err) {
-        console.error(err);
-        showToast("Error al exportar Excel.", "error");
-      }
-    });
-
-    // --- EXPORTAR A PDF (REPORTE ESTRUCTURADO) ---
-    btnExportPDF.addEventListener('click', () => {
-      const query = searchQueryInput.value.trim().toLowerCase();
-      
-      // Filtrar transacciones estrictamente por la búsqueda y que estén activas
-      const activeFiltered = mappedTransactions.filter(t => {
-        if (!t.active) return false;
-        if (query.length === 0) return true;
-        return t.fecha.toLowerCase().includes(query) ||
-               t.operacion.toLowerCase().includes(query) ||
-               t.descripcion.toLowerCase().includes(query) ||
-               t.abono.toString().includes(query);
-      });
-
-      if (activeFiltered.length === 0) {
-        showToast("No hay registros filtrados o activos para exportar.", "error");
-        return;
-      }
-
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-        doc.setFontSize(18);
-        doc.setTextColor(30, 41, 59);
-        doc.text("Reporte de Transacciones PDF Filtrado", 14, 20);
-        
-        doc.setFontSize(9.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Archivo de Origen: ${pdfFileName}`, 14, 26);
-        doc.text(`Filtro Estricto Aplicado: "${query || 'Ninguno (Todo)'}"`, 14, 31);
-
-        const tableBody = activeFiltered.map(t => [
-          t.page, t.fecha, t.operacion, t.descripcion, 
-          `$${t.abono.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        ]);
-
-        const totalSum = activeFiltered.reduce((acc, curr) => acc + curr.abono, 0);
-
-        doc.autoTable({
-          head: [['Pág', 'Fecha', 'N° Operación', 'Descripción', 'Abonos']],
-          body: tableBody,
-          startY: 36,
-          theme: 'striped',
-          headStyles: { fillHexColor: '#4f46e5', textColor: '#ffffff', fontStyle: 'bold' },
-          styles: { fontSize: 8.5, cellPadding: 2.5 },
-          columnStyles: {
-            0: { halign: 'center', cellWidth: 12 },
-            1: { cellWidth: 28 },
-            2: { cellWidth: 32 },
-            3: { cellWidth: 'auto' },
-            4: { halign: 'right', cellWidth: 28 }
-          },
-          foot: [[
-            '', '', '', 
-            'MONTO TOTAL ACUMULADO:', 
-            `$${totalSum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          ]],
-          footStyles: { fillHexColor: '#f8fafc', textColor: '#1e293b', fontStyle: 'bold', halign: 'right' },
-          margin: { top: 30, bottom: 20 }
-        });
-
-        const pdfName = pdfFileName.replace(/\.[^/.]+$/, "") + "_Filtrado_Estricto.pdf";
-        doc.save(pdfName);
-        showToast(`PDF generado: ${pdfName}`, "success");
-      } catch (err) {
-        console.error(err);
-        showToast("Error al compilar el reporte PDF.", "error");
-      }
-    });
-
-    // --- ACCIONES GENERALES ---
-    viewModeVisualBtn.addEventListener('click', () => {
-      currentViewMode = "visual";
-      viewModeVisualBtn.className = "py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
-      viewModeTextBtn.className = "py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
-      visualCanvasContainer.classList.remove('hidden');
-      plainTextContainer.classList.add('hidden');
-    });
-
-    viewModeTextBtn.addEventListener('click', () => {
-      currentViewMode = "text";
-      viewModeTextBtn.className = "py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
-      viewModeVisualBtn.className = "py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
-      plainTextContainer.classList.remove('hidden');
-      visualCanvasContainer.classList.add('hidden');
-    });
-
-    searchQueryInput.addEventListener('input', () => {
-      if (searchQueryInput.value.length > 0) btnClearText.classList.remove('hidden');
-      else btnClearText.classList.add('hidden');
-    });
-
-    btnClearText.addEventListener('click', () => {
-      searchQueryInput.value = "";
-      btnClearText.classList.add('hidden');
-      performSearch();
-    });
-
-    btnSearch.addEventListener('click', () => {
-      activeResultPageNum = null;
-      performSearch();
-    });
-
-    searchQueryInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        activeResultPageNum = null;
-        performSearch();
-      }
-    });
-
-    btnResetFilters.addEventListener('click', () => {
-      searchQueryInput.value = "";
-      btnClearText.classList.add('hidden');
-      activeResultPageNum = null;
-      performSearch();
-      showToast("Búsqueda reiniciada.", "info");
-    });
-
-    btnReset.addEventListener('click', resetApplication);
-
-    function resetApplication() {
-      currentPdfDoc = null;
-      pdfFileName = "";
-      extractedPages = [];
-      rawPdfRows = [];
-      mappedTransactions = [];
-      activeResultPageNum = null;
-
-      searchQueryInput.value = "";
-      btnClearText.classList.add('hidden');
-      fileInput.value = ""; 
-
-      docMetaInfo.classList.add('hidden');
-      searchWorkspace.classList.add('hidden');
-      progressContainer.classList.add('hidden');
-      dropZone.classList.remove('hidden');
-
-      canvasContext.clearRect(0, 0, pdfPageCanvas.width, pdfPageCanvas.height);
-      pdfPageCanvas.width = 0;
-      pdfPageCanvas.height = 0;
-      activePageIndicator.textContent = "Sin selección";
-      plainTextContainer.innerHTML = "Selecciona una coincidencia para visualizar el texto extraído.";
-    }
-  </script>
+  }
+}
+
+/* ─── SEARCH ─── */
+document.getElementById('sq').addEventListener('input',function(){
+  document.getElementById('xcl').classList.toggle('on',this.value.length>0);
+});
+document.getElementById('sq').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
+function clearQ(){ document.getElementById('sq').value=''; document.getElementById('xcl').classList.remove('on'); }
+
+function run(){
+  const q=document.getElementById('sq').value.trim();
+  if(!q){ alert('Ingresa al menos una palabra para buscar.'); return; }
+  lastQ=q;
+  const kws=q.toLowerCase().split(/\s+/).filter(Boolean);
+
+  // Only rows with abono that match ALL keywords in desc/nop
+  results=allRows.filter(r=>{
+    if(r.abono===null) return false;
+    const hay=(r.desc+' '+r.nop).toLowerCase();
+    return kws.every(k=>hay.includes(k));
+  });
+
+  updateSummary();
+  render();
+}
+
+function updateSummary(){
+  document.getElementById('sumSec').style.display='block';
+  document.getElementById('sN').textContent=results.length;
+  const pages=new Set(results.map(r=>r.page));
+  document.getElementById('sPg').textContent=pages.size;
+  const tot=results.reduce((s,r)=>s+(r.abono||0),0);
+  document.getElementById('sAb').textContent='$'+tot.toLocaleString('es-CL');
+  document.getElementById('pill').classList.toggle('on',results.length>0);
+  document.getElementById('pill').textContent=results.length+' resultado'+(results.length!==1?'s':'');
+  document.getElementById('expbtn').classList.toggle('on',results.length>0);
+}
+
+/* ─── RENDER ─── */
+let sortDir={fecha:true,nop:true,desc:true,abono:false,page:true};
+
+function render(){
+  const wrap=document.getElementById('twrap');
+  document.getElementById('ttitle').textContent=
+    results.length?`Resultados para "${lastQ}"`:
+    `Sin resultados para "${lastQ}"`;
+
+  if(!results.length){ setEmpty('noresults'); return; }
+
+  const sorted=[...results].sort((a,b)=>{
+    let va=a[sortCol]??'', vb=b[sortCol]??'';
+    if(sortCol==='abono'){va=a.abono||0;vb=b.abono||0;}
+    if(sortCol==='page'){va=a.page;vb=b.page;}
+    const asc=sortDir[sortCol]!==false;
+    if(typeof va==='number') return asc?va-vb:vb-va;
+    return asc?String(va).localeCompare(String(vb)):String(vb).localeCompare(String(va));
+  });
+
+  const arrow=c=>`<span style="margin-left:3px;opacity:${sortCol===c?1:.3}">${sortCol===c?(sortDir[c]!==false?'↑':'↓'):'↕'}</span>`;
+  const th=(c,l)=>`<th class="${sortCol===c?'sorted':''}" onclick="setSort('${c}')">${l}${arrow(c)}</th>`;
+
+  let html=`<table><thead><tr>${th('fecha','Fecha')}${th('nop','N° Operación')}${th('desc','Descripción')}${th('abono','Abono')}${th('page','Pág.')}</tr></thead><tbody>`;
+
+  let total=0;
+  sorted.forEach(r=>{
+    total+=r.abono||0;
+    html+=`<tr>
+      <td class="td-fecha">${r.fecha}</td>
+      <td class="td-op">${esc(r.nop)}</td>
+      <td class="td-desc"><div class="desc-txt">${hl(esc(r.desc),lastQ)}</div></td>
+      <td class="td-ab"><span class="ab-val">$${(r.abono||0).toLocaleString('es-CL')}</span></td>
+      <td style="text-align:center;color:var(--tx3);font-size:12px">${r.page}</td>
+    </tr>`;
+  });
+
+  html+=`</tbody><tfoot><tr class="tfoot">
+    <td colspan="3" class="tot-lbl">TOTAL — ${sorted.length} abono${sorted.length!==1?'s':''} encontrado${sorted.length!==1?'s':''}</td>
+    <td class="td-ab"><span class="ab-val">$${total.toLocaleString('es-CL')}</span></td>
+    <td></td>
+  </tr></tfoot></table>`;
+
+  wrap.innerHTML=html;
+}
+
+function setSort(c){
+  if(sortCol===c) sortDir[c]=!sortDir[c]; else{sortCol=c;}
+  if(results.length) render();
+}
+
+/* ─── HELPERS ─── */
+function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escRe(t){ return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function hl(text,q){
+  if(!q) return text;
+  q.split(/\s+/).filter(Boolean).forEach(kw=>{
+    text=text.replace(new RegExp('('+escRe(kw)+')','gi'),'<mark>$1</mark>');
+  });
+  return text;
+}
+
+/* ─── EXPORT CSV ─── */
+function exportCSV(){
+  if(!results.length) return;
+  const sorted=[...results].sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)));
+  const rows=[['Fecha','N° Operación','Descripción','Abono','Página']];
+  sorted.forEach(r=>rows.push([r.fecha,r.nop,'"'+r.desc.replace(/"/g,'""')+'"',r.abono??'',r.page]));
+  rows.push([]);
+  const tot=results.reduce((s,r)=>s+(r.abono||0),0);
+  rows.push(['"TOTAL"','','',tot,'']);
+  const csv=rows.map(r=>r.join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='abonos_'+lastQ.replace(/[^a-z0-9]/gi,'_').slice(0,30)+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* ─── EMPTY STATE ─── */
+function setEmpty(t){
+  const map={
+    ready:['PDF listo','Escribe un término y presiona Buscar para ver los abonos.'],
+    noresults:['Sin resultados','No hay abonos que coincidan con "'+lastQ+'". Prueba con otro término.'],
+  };
+  const [h,p]=map[t]||map.ready;
+  document.getElementById('twrap').innerHTML=`<div class="empty">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>${t==='noresults'?'<line x1="8" y1="11" x2="14" y2="11"/>':''}</svg>
+    <h3>${h}</h3><p>${p}</p></div>`;
+}
+</script>
 </body>
 </html>
