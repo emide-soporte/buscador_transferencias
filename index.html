@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buscador de PDF por Descripción</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js desde CDN de confianza -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <style>
+    /* Estilos personalizados para barra de scroll y transiciones */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .highlight-match {
+      background-color: rgba(253, 224, 71, 0.6);
+      border-bottom: 2px solid #eab308;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- Encabezado Principal -->
+  <header class="bg-gradient-to-r from-indigo-700 to-slate-900 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Icono de PDF / Buscador -->
+        <div class="bg-white/10 p-2.5 rounded-lg border border-white/20">
+          <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">PDF Finder Lite</h1>
+          <p class="text-xs text-indigo-200">Buscador instantáneo por palabras clave y descripciones</p>
+        </div>
+      </div>
+      <div class="text-xs text-indigo-100 text-right hidden md:block">
+        <p>Procesamiento 100% en el navegador</p>
+        <p class="opacity-80">Privacidad garantizada (sin servidores externos)</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-6">
+    
+    <!-- Zona de Carga de Archivo -->
+    <div id="dropZone" class="bg-white border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-8 text-center transition-all cursor-pointer shadow-sm relative overflow-hidden group">
+      <input type="file" id="fileInput" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" />
+      <div class="flex flex-col items-center justify-center gap-3">
+        <div class="bg-indigo-50 text-indigo-600 p-4 rounded-full group-hover:scale-110 transition-transform">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-lg font-semibold text-slate-700">Arrastra tu archivo PDF aquí o <span class="text-indigo-600 hover:underline">búscalo en tu equipo</span></p>
+          <p class="text-sm text-slate-500 mt-1">Soporta documentos multipágina. Se extraerá y analizará todo el contenido textual.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Progreso de Análisis (Oculta por defecto) -->
+    <div id="progressContainer" class="hidden bg-white rounded-xl p-6 shadow-sm border border-slate-100">
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-2">
+          <span class="animate-spin rounded-full h-4.5 w-4.5 border-2 border-indigo-600 border-t-transparent"></span>
+          <span class="font-medium text-slate-700" id="progressStatus">Analizando documento...</span>
+        </div>
+        <span class="text-sm font-bold text-indigo-600" id="progressPercent">0%</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-200" style="width: 0%"></div>
+      </div>
+      <p class="text-xs text-slate-400 mt-2 text-center">Extrayendo texto de cada página para habilitar búsquedas instantáneas. Por favor, espera.</p>
+    </div>
+
+    <!-- Panel de Información del Documento Activo -->
+    <div id="docMetaInfo" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-2.5">
+        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <span class="font-semibold text-slate-950" id="loadedDocName">documento.pdf</span>
+          <span class="text-xs text-emerald-700 ml-2" id="loadedDocPages">(0 páginas)</span>
+        </div>
+      </div>
+      <div>
+        <button id="btnReset" class="text-xs text-slate-600 hover:text-red-600 font-semibold transition-colors flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+          Quitar archivo
+        </button>
+      </div>
+    </div>
+
+    <!-- Área de Trabajo Principal (Buscador y Visualizador) -->
+    <div id="searchWorkspace" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Panel de Controles de Búsqueda (Izquierda - 4 Columnas) -->
+      <section class="lg:col-span-4 flex flex-col gap-4">
+        
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-4">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            Filtro por Descripción
+          </h2>
+
+          <!-- Búsqueda por Texto / Descripción -->
+          <div class="flex flex-col gap-1.5">
+            <label for="searchQuery" class="text-xs font-semibold text-slate-600">Descripción o palabra clave a buscar</label>
+            <div class="relative">
+              <input type="text" id="searchQuery" placeholder="Escribe para buscar..." class="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+              <button id="btnClearText" class="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 hidden">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400">Presiona Enter o haz clic en Filtrar para aplicar la búsqueda.</p>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="flex gap-2 pt-2">
+            <button id="btnSearch" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Filtrar
+            </button>
+            <button id="btnResetFilters" class="border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium py-2 px-3 rounded-lg text-sm transition-colors">
+              Limpiar
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Indicador de cantidad de resultados -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900 flex justify-between items-center">
+          <span class="font-medium">Páginas con coincidencias:</span>
+          <span id="resultsCount" class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">0</span>
+        </div>
+
+      </section>
+
+      <!-- Panel de Resultados y Visualización (Derecha - 8 Columnas) -->
+      <section class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Listado de Coincidencias -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
+          <h3 class="text-sm font-bold text-slate-800 pb-3 border-b border-slate-100 flex justify-between items-center">
+            <span>Resultados</span>
+            <span class="text-xs font-normal text-slate-500">Haz clic en una página para ver</span>
+          </h3>
+
+          <!-- Contenedor con Scroll para Resultados -->
+          <div id="resultsList" class="flex-1 overflow-y-auto mt-3 pr-1 flex flex-col gap-3">
+            <!-- Mensaje Inicial -->
+            <div class="text-center py-12 text-slate-400 flex flex-col items-center gap-2">
+              <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <p class="text-sm">Escribe una descripción o palabra clave para buscar coincidencias.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Previsualizador de Página del PDF -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 flex flex-col h-[600px]">
+          <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 class="text-sm font-bold text-slate-800">Previsualización</h3>
+            <span id="activePageIndicator" class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-md font-semibold">Sin selección</span>
+          </div>
+
+          <!-- Contenedor del Canvas y del Texto Contextual -->
+          <div class="flex-1 flex flex-col gap-4 mt-4 overflow-hidden">
+            
+            <!-- Selector de Vista -->
+            <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+              <button id="viewModeVisual" class="py-1 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none">Página (Render)</button>
+              <button id="viewModeText" class="py-1 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none">Texto Plano</button>
+            </div>
+
+            <!-- Contenedor del Visor Real -->
+            <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-slate-50 relative flex items-center justify-center p-2">
+              
+              <!-- Loader de Rendering -->
+              <div id="renderLoader" class="hidden absolute inset-0 bg-slate-900/10 backdrop-blur-xs flex items-center justify-center z-10">
+                <div class="bg-white px-4 py-2.5 rounded-lg shadow-md flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <span class="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></span>
+                  Procesando visualización...
+                </div>
+              </div>
+
+              <!-- Vista Visual: Canvas del PDF -->
+              <div id="visualCanvasContainer" class="w-full h-full overflow-auto flex justify-center items-start">
+                <canvas id="pdfPageCanvas" class="shadow-md border border-slate-200 max-w-full bg-white"></canvas>
+              </div>
+
+              <!-- Vista de Texto: Texto Plano con coincidencia destacada -->
+              <div id="plainTextContainer" class="hidden w-full h-full overflow-y-auto p-4 bg-slate-900 text-slate-100 font-mono text-xs leading-relaxed rounded-md whitespace-pre-wrap selection:bg-indigo-500">
+                Selecciona una coincidencia para visualizar el texto extraído.
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Pie de Página -->
+  <footer class="bg-slate-800 text-slate-400 text-xs py-4 border-t border-slate-700 mt-8">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>&copy; 2026 PDF Finder Lite. Procesamiento totalmente privado y local.</p>
+      <p class="flex items-center gap-1.5">
+        <span>Desarrollado usando PDF.js</span>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Notificaciones Flotantes Personalizadas -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 translate-y-20 opacity-0 pointer-events-none transition-all duration-300">
+    <div id="toastIcon" class="text-indigo-400"></div>
+    <div class="flex-1">
+      <p id="toastMessage" class="text-sm font-medium"></p>
+    </div>
+    <button id="btnDismissToast" class="text-slate-400 hover:text-white ml-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- JavaScript del Motor de PDF y Lógica de Búsqueda -->
+  <script>
+    // Inicializar PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    // Estados Globales de la Aplicación
+    let currentPdfDoc = null;
+    let pdfFileName = "";
+    let extractedPages = []; // Estructura: [{ pageNum: Int, text: String }]
+    let activeResultPageNum = null;
+    let currentViewMode = "visual"; // "visual" o "text"
+
+    // Elementos del DOM
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressPercent = document.getElementById('progressPercent');
+    const docMetaInfo = document.getElementById('docMetaInfo');
+    const loadedDocName = document.getElementById('loadedDocName');
+    const loadedDocPages = document.getElementById('loadedDocPages');
+    const btnReset = document.getElementById('btnReset');
+    const searchWorkspace = document.getElementById('searchWorkspace');
+    
+    // Controles de Búsqueda
+    const searchQueryInput = document.getElementById('searchQuery');
+    const btnClearText = document.getElementById('btnClearText');
+    const btnSearch = document.getElementById('btnSearch');
+    const btnResetFilters = document.getElementById('btnResetFilters');
+    const resultsCount = document.getElementById('resultsCount');
+    const resultsList = document.getElementById('resultsList');
+
+    // Visor de PDF
+    const activePageIndicator = document.getElementById('activePageIndicator');
+    const viewModeVisualBtn = document.getElementById('viewModeVisual');
+    const viewModeTextBtn = document.getElementById('viewModeText');
+    const pdfPageCanvas = document.getElementById('pdfPageCanvas');
+    const canvasContext = pdfPageCanvas.getContext('2d');
+    const visualCanvasContainer = document.getElementById('visualCanvasContainer');
+    const plainTextContainer = document.getElementById('plainTextContainer');
+    const renderLoader = document.getElementById('renderLoader');
+
+    // Toast Notificaciones
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+    const btnDismissToast = document.getElementById('btnDismissToast');
+
+    // --- MANEJO DE NOTIFICACIONES (TOASTS) ---
+    function showToast(message, type = 'info') {
+      toastMessage.textContent = message;
+      
+      if (type === 'error') {
+        toastIcon.innerHTML = `
+          <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+        `;
+      } else if (type === 'success') {
+        toastIcon.innerHTML = `
+          <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        `;
+      } else {
+        toastIcon.innerHTML = `
+          <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        `;
+      }
+
+      toastNotification.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(dismissToast, 5000);
+    }
+
+    function dismissToast() {
+      toastNotification.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toastNotification.classList.remove('translate-y-0', 'opacity-100');
+    }
+
+    btnDismissToast.addEventListener('click', dismissToast);
+
+    // --- EVENTOS DE CARGA Y ARRASTRE ---
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-600', 'bg-indigo-50/50');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelection(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelection(file) {
+      if (!file) return;
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        showToast("Por favor, sube un archivo con extensión .pdf válido", "error");
+        return;
+      }
+      pdfFileName = file.name;
+      loadAndParsePDF(file);
+    }
+
+    // --- EXTRACCIÓN Y PARSEO DEL PDF ---
+    async function loadAndParsePDF(file) {
+      dropZone.classList.add('hidden');
+      progressContainer.classList.remove('hidden');
+      docMetaInfo.classList.add('hidden');
+      searchWorkspace.classList.add('hidden');
+      
+      extractedPages = [];
+      activeResultPageNum = null;
+      
+      updateProgressBar(0, "Leyendo archivo PDF...");
+
+      const reader = new FileReader();
+      reader.onload = async function() {
+        try {
+          const typedArray = new Uint8Array(this.result);
+          
+          const loadingTask = pdfjsLib.getDocument(typedArray);
+          currentPdfDoc = await loadingTask.promise;
+          const totalPages = currentPdfDoc.numPages;
+
+          updateProgressBar(10, `Iniciando análisis de ${totalPages} páginas...`);
+
+          // Procesar el texto de cada página
+          for (let i = 1; i <= totalPages; i++) {
+            updateProgressBar(
+              10 + Math.floor((i / totalPages) * 80), 
+              `Extrayendo texto de página ${i} de ${totalPages}...`
+            );
+
+            const page = await currentPdfDoc.getPage(i);
+            const textContent = await page.getTextContent();
+            
+            // Reconstruir el texto uniendo los fragmentos
+            const pageText = textContent.items.map(item => item.str).join(' ');
+
+            extractedPages.push({
+              pageNum: i,
+              text: pageText
+            });
+          }
+
+          updateProgressBar(100, "¡Análisis completado!");
+          setTimeout(() => {
+            progressContainer.classList.add('hidden');
+            renderUIWithDocument(totalPages);
+          }, 500);
+
+        } catch (error) {
+          console.error("Error al procesar el PDF: ", error);
+          showToast("Ocurrió un error al leer el PDF.", "error");
+          resetApplication();
+        }
+      };
+
+      reader.onerror = function() {
+        showToast("Error de lectura del archivo local.", "error");
+        resetApplication();
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function updateProgressBar(percent, text) {
+      progressBar.style.width = `${percent}%`;
+      progressPercent.textContent = `${percent}%`;
+      progressStatus.textContent = text;
+    }
+
+    // --- RENDERIZADO DE LA INTERFAZ DE USUARIO ---
+    function renderUIWithDocument(totalPages) {
+      loadedDocName.textContent = pdfFileName;
+      loadedDocPages.textContent = `(${totalPages} ${totalPages === 1 ? 'página' : 'páginas'})`;
+      
+      docMetaInfo.classList.remove('hidden');
+      searchWorkspace.classList.remove('hidden');
+
+      // Búsqueda inicial vacía para listar todas las páginas
+      performSearch();
+      showToast("PDF cargado con éxito. Escribe una descripción para buscar.", "success");
+    }
+
+    // --- LÓGICA DE BÚSQUEDA ---
+    function performSearch() {
+      const query = searchQueryInput.value.trim().toLowerCase();
+      const filteredResults = [];
+
+      extractedPages.forEach(page => {
+        let textMatches = true;
+
+        if (query.length > 0) {
+          textMatches = page.text.toLowerCase().includes(query);
+        }
+
+        if (textMatches) {
+          let snippet = "";
+          if (query.length > 0) {
+            const index = page.text.toLowerCase().indexOf(query);
+            const start = Math.max(0, index - 40);
+            const end = Math.min(page.text.length, index + query.length + 50);
+            snippet = page.text.slice(start, end);
+            if (start > 0) snippet = "..." + snippet;
+            if (end < page.text.length) snippet = snippet + "...";
+          } else {
+            snippet = page.text.substring(0, 100) + "...";
+          }
+
+          filteredResults.push({
+            pageNum: page.pageNum,
+            fullText: page.text,
+            snippet: snippet
+          });
+        }
+      });
+
+      renderResultsList(filteredResults, query);
+    }
+
+    // Renderiza la lista de páginas coincidentes
+    function renderResultsList(results, activeQuery) {
+      resultsCount.textContent = results.length;
+      resultsList.innerHTML = "";
+
+      if (results.length === 0) {
+        resultsList.innerHTML = `
+          <div class="text-center py-16 text-slate-400">
+            <svg class="w-12 h-12 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-sm font-semibold">No se encontraron coincidencias</p>
+            <p class="text-xs mt-1">Prueba refinando la descripción buscada.</p>
+          </div>
+        `;
+        return;
+      }
+
+      results.forEach(res => {
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-xl border transition-all cursor-pointer text-left flex flex-col gap-2 ${
+          activeResultPageNum === res.pageNum 
+            ? 'bg-indigo-50/75 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20' 
+            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-slate-300'
+        }`;
+        
+        let highlightedSnippet = res.snippet;
+        if (activeQuery.length > 0) {
+          const regex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
+          highlightedSnippet = res.snippet.replace(regex, '<mark class="highlight-match">$1</mark>');
+        }
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <span class="bg-slate-200 text-slate-800 text-xs font-bold px-2 py-1 rounded-md">Página ${res.pageNum}</span>
+            <span class="text-[11px] text-slate-400 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              ${res.fullText.length} carac.
+            </span>
+          </div>
+          <p class="text-xs text-slate-600 font-normal italic bg-white p-2 rounded-lg border border-slate-100 line-clamp-3 leading-relaxed">
+            ${highlightedSnippet}
+          </p>
+        `;
+
+        card.addEventListener('click', () => {
+          selectActiveResult(res.pageNum);
+        });
+
+        resultsList.appendChild(card);
+      });
+
+      if (results.length > 0 && !activeResultPageNum) {
+        selectActiveResult(results[0].pageNum);
+      }
+    }
+
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function selectActiveResult(pageNum) {
+      activeResultPageNum = pageNum;
+      activePageIndicator.textContent = `Página ${pageNum} de ${currentPdfDoc.numPages}`;
+      
+      // Mantener la selección actualizada en la lista
+      const query = searchQueryInput.value.trim().toLowerCase();
+      const filteredResults = [];
+
+      extractedPages.forEach(page => {
+        let textMatches = true;
+        if (query.length > 0) {
+          textMatches = page.text.toLowerCase().includes(query);
+        }
+
+        if (textMatches) {
+          let snippet = "";
+          if (query.length > 0) {
+            const index = page.text.toLowerCase().indexOf(query);
+            const start = Math.max(0, index - 40);
+            const end = Math.min(page.text.length, index + query.length + 50);
+            snippet = page.text.slice(start, end);
+            if (start > 0) snippet = "..." + snippet;
+            if (end < page.text.length) snippet = snippet + "...";
+          } else {
+            snippet = page.text.substring(0, 100) + "...";
+          }
+          filteredResults.push({ pageNum: page.pageNum, fullText: page.text, snippet: snippet });
+        }
+      });
+
+      renderResultsList(filteredResults, query);
+      renderActivePage();
+    }
+
+    // --- VISUALIZACIÓN DE PÁGINA SELECCIONADA ---
+    async function renderActivePage() {
+      if (!currentPdfDoc || !activeResultPageNum) return;
+
+      const pageData = extractedPages.find(p => p.pageNum === activeResultPageNum);
+      if (pageData) {
+        const query = searchQueryInput.value.trim();
+        let formattedText = pageData.text;
+
+        if (query.length > 0) {
+          const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+          formattedText = pageData.text.replace(regex, '<mark class="bg-yellow-300 text-slate-900 px-1 font-bold rounded-sm">$1</mark>');
+        }
+        
+        plainTextContainer.innerHTML = formattedText;
+      }
+
+      renderLoader.classList.remove('hidden');
+      try {
+        const page = await currentPdfDoc.getPage(activeResultPageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        pdfPageCanvas.height = viewport.height;
+        pdfPageCanvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: canvasContext,
+          viewport: viewport
+        };
+
+        await page.render(renderContext).promise;
+      } catch (error) {
+        console.error("Error al renderizar el canvas:", error);
+      } finally {
+        renderLoader.classList.add('hidden');
+      }
+    }
+
+    // --- ACCIONES Y CONTROLES INTERACTIVOS ---
+    viewModeVisualBtn.addEventListener('click', () => {
+      currentViewMode = "visual";
+      viewModeVisualBtn.className = "py-1 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
+      viewModeTextBtn.className = "py-1 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
+      
+      visualCanvasContainer.classList.remove('hidden');
+      plainTextContainer.classList.add('hidden');
+    });
+
+    viewModeTextBtn.addEventListener('click', () => {
+      currentViewMode = "text";
+      viewModeTextBtn.className = "py-1 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
+      viewModeVisualBtn.className = "py-1 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
+      
+      plainTextContainer.classList.remove('hidden');
+      visualCanvasContainer.classList.add('hidden');
+    });
+
+    searchQueryInput.addEventListener('input', () => {
+      if (searchQueryInput.value.length > 0) {
+        btnClearText.classList.remove('hidden');
+      } else {
+        btnClearText.classList.add('hidden');
+      }
+    });
+
+    btnClearText.addEventListener('click', () => {
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      performSearch();
+    });
+
+    btnSearch.addEventListener('click', () => {
+      activeResultPageNum = null;
+      performSearch();
+    });
+
+    searchQueryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        activeResultPageNum = null;
+        performSearch();
+      }
+    });
+
+    btnResetFilters.addEventListener('click', () => {
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      activeResultPageNum = null;
+      performSearch();
+      showToast("Búsqueda restablecida", "info");
+    });
+
+    btnReset.addEventListener('click', resetApplication);
+
+    function resetApplication() {
+      currentPdfDoc = null;
+      pdfFileName = "";
+      extractedPages = [];
+      activeResultPageNum = null;
+
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      fileInput.value = ""; 
+
+      docMetaInfo.classList.add('hidden');
+      searchWorkspace.classList.add('hidden');
+      progressContainer.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+
+      canvasContext.clearRect(0, 0, pdfPageCanvas.width, pdfPageCanvas.height);
+      pdfPageCanvas.width = 0;
+      pdfPageCanvas.height = 0;
+      activePageIndicator.textContent = "Sin selección";
+      plainTextContainer.innerHTML = "Selecciona una coincidencia para visualizar el texto extraído.";
+    }
+  </script>
+</body>
+</html>
