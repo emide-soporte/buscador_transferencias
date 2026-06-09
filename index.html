@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Deep Search & Exporter - Mapeador de Columnas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js desde CDN de confianza -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <!-- Librerías de Exportación -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    .highlight-match {
+      background-color: rgba(253, 224, 71, 0.7);
+      border-bottom: 2px solid #eab308;
+      border-radius: 2px;
+      padding: 0 2px;
+      color: #0f172a;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Encabezado Principal -->
+  <header class="bg-gradient-to-r from-indigo-800 to-slate-900 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-white/10 p-2.5 rounded-xl border border-white/20">
+          <svg class="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10vd12m-6-6h12m-3-12h1.5A2.5 2.5 0 0119 5.5V17a3 3 0 01-3 3H4a3 3 0 01-3-3V5.5A2.5 2.5 0 013.5 3H5"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">PDF Deep Search & Export</h1>
+          <p class="text-xs text-indigo-200 font-medium">Asistente interactivo de extracción y mapeo de columnas para transacciones</p>
+        </div>
+      </div>
+      <div class="text-xs text-indigo-100 text-right hidden md:block bg-white/5 py-1.5 px-3 rounded-lg border border-white/10">
+        <p class="font-medium">Procesamiento local ultrapreciso</p>
+        <p class="opacity-70">Mapeador dinámico de filas financieras</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-6">
+    
+    <!-- Zona de Carga de Archivo -->
+    <div id="dropZone" class="bg-white border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl p-10 text-center transition-all cursor-pointer shadow-sm relative overflow-hidden group">
+      <input type="file" id="fileInput" accept=".pdf" class="absolute inset-0 opacity-0 cursor-pointer" />
+      <div class="flex flex-col items-center justify-center gap-4">
+        <div class="bg-indigo-50 text-indigo-600 p-5 rounded-full group-hover:scale-110 transition-transform shadow-xs">
+          <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <p class="text-xl font-bold text-slate-700">Carga tu PDF financiero o estado de cuenta aquí</p>
+          <p class="text-sm text-slate-500 mt-1">Extraeremos todas las páginas y te ayudaremos a mapear los datos exactamente como están organizadas tus columnas.</p>
+          <div class="mt-4 flex justify-center gap-2">
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-medium">
+              Filtro y mapeador de columnas
+            </span>
+            <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-medium">
+              Formatos XLSX y PDF listos
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Progreso de Análisis Detallado (Oculta por defecto) -->
+    <div id="progressContainer" class="hidden bg-white rounded-2xl p-6 shadow-md border border-slate-100">
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
+          </span>
+          <span class="font-semibold text-slate-700 text-sm md:text-base" id="progressStatus">Analizando documento...</span>
+        </div>
+        <span class="text-sm font-bold text-indigo-600" id="progressPercent">0%</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-150" style="width: 0%"></div>
+      </div>
+      
+      <!-- Consola de Indexación en Tiempo Real -->
+      <div class="mt-4">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lectura y Extracción de Datos en Proceso:</p>
+        <div id="indexLogConsole" class="bg-slate-900 text-emerald-400 font-mono text-[11px] p-3 rounded-lg h-36 overflow-y-auto flex flex-col gap-1 shadow-inner border border-slate-800">
+          <div class="text-slate-400 italic">Iniciando motor de lectura de páginas...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de Información del Documento Activo -->
+    <div id="docMetaInfo" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-3 shadow-xs">
+      <div class="flex items-center gap-2.5">
+        <div class="bg-emerald-100 p-1.5 rounded-lg text-emerald-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-slate-950 block text-sm sm:inline sm:text-base" id="loadedDocName">documento.pdf</span>
+          <span class="text-xs text-emerald-700 sm:ml-2 font-medium" id="loadedDocPages">(0 páginas analizadas)</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="badgeTotalLines" class="bg-indigo-100 text-indigo-800 text-xs px-2.5 py-1 rounded-md font-semibold">0 filas de datos crudas</span>
+        <button id="btnReset" class="text-xs text-slate-600 hover:text-red-600 font-bold transition-colors flex items-center gap-1 py-1 px-2 hover:bg-red-50 rounded-lg">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+          </svg>
+          Quitar archivo
+        </button>
+      </div>
+    </div>
+
+    <!-- Área de Trabajo Principal (Buscador y Visualizador) -->
+    <div id="searchWorkspace" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Panel de Controles de Búsqueda (Izquierda - 4 Columnas) -->
+      <section class="lg:col-span-4 flex flex-col gap-4">
+        
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+          <h2 class="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+            </svg>
+            Buscador en Texto del PDF
+          </h2>
+
+          <!-- Búsqueda por Texto / Descripción -->
+          <div class="flex flex-col gap-1.5">
+            <label for="searchQuery" class="text-xs font-bold text-slate-600">Palabra clave o filtro de filas</label>
+            <div class="relative">
+              <input type="text" id="searchQuery" placeholder="Ej. transferencia, compra, abono..." class="w-full pl-3 pr-8 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-xs" />
+              <button id="btnClearText" class="absolute right-2.5 top-3 text-slate-400 hover:text-slate-600 hidden">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400">Filtra las páginas coincidentes y las filas mapeadas en el panel derecho.</p>
+          </div>
+
+          <!-- Botones de Acción -->
+          <div class="flex gap-2 pt-1">
+            <button id="btnSearch" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              Buscar
+            </button>
+            <button id="btnResetFilters" class="border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium py-2.5 px-3 rounded-lg text-sm transition-colors">
+              Limpiar
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Indicador de cantidad de resultados de páginas -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900 flex justify-between items-center shadow-xs">
+          <span class="font-semibold">Coincidencias en páginas:</span>
+          <span id="resultsCount" class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">0</span>
+        </div>
+
+        <!-- Acceso Directo a Exportación Global -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3">
+          <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Exportación de Reporte</h3>
+          <p class="text-[11px] text-slate-500">Descarga los datos que has seleccionado y mapeado en las pestañas de la derecha.</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btnExportExcel" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Excel (.xlsx)
+            </button>
+            <button id="btnExportPDF" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors shadow-xs">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              PDF Tabla
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Panel de Resultados y Visualización (Derecha - 8 Columnas) -->
+      <section class="lg:col-span-8 flex flex-col gap-6">
+        
+        <!-- Pestañas Superiores de Navegación -->
+        <div class="flex border-b border-slate-200 bg-white p-2 rounded-2xl shadow-xs gap-1">
+          <button id="tabButtonPages" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700">
+            🔎 Buscador Visual de Páginas
+          </button>
+          <button id="tabButtonTable" class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50">
+            ⚙️ Mapeador & Seleccionador de Columnas 
+          </button>
+        </div>
+
+        <!-- VISTA DE BUSCADOR POR PÁGINAS -->
+        <div id="tabContentPages" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Listado de Coincidencias -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[560px]">
+            <h3 class="text-sm font-bold text-slate-800 pb-3 border-b border-slate-100 flex justify-between items-center">
+              <span>Páginas con coincidencias</span>
+              <span class="text-[11px] font-normal text-slate-400">Haz clic para pintar la página</span>
+            </h3>
+
+            <!-- Contenedor con Scroll para Resultados -->
+            <div id="resultsList" class="flex-1 overflow-y-auto mt-3 pr-1 flex flex-col gap-3">
+              <div class="text-center py-16 text-slate-400 flex flex-col items-center gap-2">
+                <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <p class="text-sm font-semibold">Esperando análisis o consulta...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Previsualizador de Página del PDF -->
+          <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[560px]">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+              <h3 class="text-sm font-bold text-slate-800">Visualizador de Página</h3>
+              <span id="activePageIndicator" class="bg-slate-100 text-slate-700 text-[11px] px-2.5 py-1 rounded-md font-bold">Sin selección</span>
+            </div>
+
+            <!-- Contenedor del Canvas y del Texto Contextual -->
+            <div class="flex-1 flex flex-col gap-3 mt-3 overflow-hidden">
+              
+              <!-- Selector de Vista -->
+              <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+                <button id="viewModeVisual" class="py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none">Página Real (Render)</button>
+                <button id="viewModeText" class="py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none">Texto Plano</button>
+              </div>
+
+              <!-- Contenedor del Visor Real -->
+              <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden bg-slate-100 relative flex items-center justify-center p-2">
+                
+                <!-- Loader de Rendering -->
+                <div id="renderLoader" class="hidden absolute inset-0 bg-slate-900/10 backdrop-blur-xs flex items-center justify-center z-10">
+                  <div class="bg-white px-4 py-2.5 rounded-lg shadow-md flex items-center gap-2 text-xs font-medium text-slate-700">
+                    <span class="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent"></span>
+                    Obteniendo vista...
+                  </div>
+                </div>
+
+                <!-- Vista Visual: Canvas del PDF -->
+                <div id="visualCanvasContainer" class="w-full h-full overflow-auto flex justify-center items-start">
+                  <canvas id="pdfPageCanvas" class="shadow-sm border border-slate-200 max-w-full bg-white"></canvas>
+                </div>
+
+                <!-- Vista de Texto: Texto Plano con coincidencia destacada -->
+                <div id="plainTextContainer" class="hidden w-full h-full overflow-y-auto p-4 bg-slate-900 text-slate-100 font-mono text-[11px] leading-relaxed rounded-md whitespace-pre-wrap selection:bg-indigo-500">
+                  Selecciona una coincidencia para visualizar el texto extraído de la página.
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- VISTA DE TABLA DE DATOS EXTRAÍDOS (ASISTENTE DE COLUMNAS) -->
+        <div id="tabContentTable" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+          
+          <!-- Sección de Configuración del Delimitador y Mapeo -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+              <span class="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                </svg>
+                Asistente de Separación y Estructura de Datos
+              </span>
+              <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">100% Interactivo</span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+              
+              <!-- 1. Cómo separar columnas -->
+              <div class="flex flex-col gap-1 md:col-span-1">
+                <label for="selectDelimiter" class="text-[10px] font-bold text-slate-600">1. Separador de Columnas</label>
+                <select id="selectDelimiter" class="w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="multiSpace" selected>Múltiples Espacios (Recomendado)</option>
+                  <option value="singleSpace">Espacio Simple</option>
+                  <option value="tab">Tabulador (\t)</option>
+                  <option value="comma">Coma (,)</option>
+                  <option value="pipe">Barra Vertical (|)</option>
+                </select>
+              </div>
+
+              <!-- 2. Mapear Fecha -->
+              <div class="flex flex-col gap-1">
+                <label for="colMapFecha" class="text-[10px] font-bold text-slate-600">2. Columna Fecha</label>
+                <select id="colMapFecha" class="col-mapper w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="0" selected>Columna 1</option>
+                </select>
+              </div>
+
+              <!-- 3. Mapear Operación -->
+              <div class="flex flex-col gap-1">
+                <label for="colMapOperacion" class="text-[10px] font-bold text-slate-600">3. Columna N° Op.</label>
+                <select id="colMapOperacion" class="col-mapper w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="1" selected>Columna 2</option>
+                </select>
+              </div>
+
+              <!-- 4. Mapear Descripción -->
+              <div class="flex flex-col gap-1">
+                <label for="colMapDescripcion" class="text-[10px] font-bold text-slate-600">4. Columna Descripción</label>
+                <select id="colMapDescripcion" class="col-mapper w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="2" selected>Columna 3</option>
+                </select>
+              </div>
+
+              <!-- 5. Mapear Abonos -->
+              <div class="flex flex-col gap-1">
+                <label for="colMapAbonos" class="text-[10px] font-bold text-slate-600">5. Columna Abonos ($)</label>
+                <select id="colMapAbonos" class="col-mapper w-full text-xs px-2 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                  <option value="3" selected>Columna 4</option>
+                </select>
+              </div>
+
+            </div>
+
+            <div class="text-[11px] text-slate-500 flex flex-col sm:flex-row justify-between gap-1.5">
+              <span>💡 Cambia el <strong>Separador de Columnas</strong> o el <strong>Mapeo</strong> si los datos del PDF no calzan correctamente.</span>
+              <button id="btnApplyMapping" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] px-3 py-1 rounded-md transition-colors self-start sm:self-center">
+                Refrescar Estructura
+              </button>
+            </div>
+          </div>
+
+          <!-- Cabecera de la Tabla Interactiva con selectores globales -->
+          <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-800">Filas del PDF Listas para Exportar</h3>
+              <p class="text-xs text-slate-500">Usa las casillas para decidir qué filas se incluirán en tu reporte Excel o PDF final.</p>
+            </div>
+            <div class="flex gap-2">
+              <button id="btnSelectAllRows" class="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors">
+                Seleccionar Todo
+              </button>
+              <button id="btnDeselectAllRows" class="border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors">
+                Desmarcar Todo
+              </button>
+              <button id="btnAddManualRow" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Añadir Fila Manual
+              </button>
+            </div>
+          </div>
+
+          <!-- Contenedor de la Tabla -->
+          <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-[400px] overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase font-bold tracking-wider">
+                  <th class="py-3 px-4 w-12 text-center">Incluir</th>
+                  <th class="py-3 px-4 w-12 text-center">Pág</th>
+                  <th class="py-3 px-4 w-32">Fecha</th>
+                  <th class="py-3 px-4 w-32">N° Operación</th>
+                  <th class="py-3 px-4">Descripción</th>
+                  <th class="py-3 px-4 w-28 text-right">Abonos ($)</th>
+                  <th class="py-3 px-4 w-12 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTableBody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Filas mapeadas dinámicamente -->
+                <tr>
+                  <td colspan="7" class="text-center py-10 text-slate-400 italic">No hay transacciones cargadas. Sube un documento para iniciar.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Resumen de Totales Activos -->
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+            <span class="text-slate-500 font-medium">Filas Seleccionadas para Exportar: <strong id="tableSummaryCount" class="text-indigo-700 font-bold">0</strong></span>
+            <span class="text-slate-700 font-bold">Monto Total Abonos Activos: <span id="tableSummarySum" class="text-emerald-700 text-sm font-extrabold">$0.00</span></span>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Pie de Página -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-5 border-t border-slate-800 mt-8">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>&copy; 2026 PDF Deep Search & Export. Procesamiento local de páginas de alta precisión.</p>
+      <p class="flex items-center gap-1.5 text-slate-500 font-medium">
+        <span>Garantía de análisis total de todas las páginas</span>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Notificaciones Flotantes Personalizadas (Toasts) -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 translate-y-20 opacity-0 pointer-events-none transition-all duration-300">
+    <div id="toastIcon" class="text-indigo-400"></div>
+    <div class="flex-1">
+      <p id="toastMessage" class="text-xs sm:text-sm font-medium"></p>
+    </div>
+    <button id="btnDismissToast" class="text-slate-400 hover:text-white ml-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- JavaScript del Motor de PDF y Lógica de Búsqueda -->
+  <script>
+    // Configurar el worker de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    // Estados Globales de la Aplicación
+    let currentPdfDoc = null;
+    let pdfFileName = "";
+    let extractedPages = []; // [{ pageNum: Int, text: String, charsCount: Int }]
+    let rawPdfRows = []; // [{ id: String, page: Int, rawText: String, cols: Array }]
+    let mappedTransactions = []; // [{ id, page, fecha, operacion, descripcion, abono, active: Boolean }]
+    let activeResultPageNum = null;
+    let currentViewMode = "visual"; // "visual" o "text"
+    let currentActiveTab = "pages"; // "pages" o "table"
+
+    // Elementos del DOM
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressPercent = document.getElementById('progressPercent');
+    const indexLogConsole = document.getElementById('indexLogConsole');
+    const docMetaInfo = document.getElementById('docMetaInfo');
+    const loadedDocName = document.getElementById('loadedDocName');
+    const loadedDocPages = document.getElementById('loadedDocPages');
+    const badgeTotalLines = document.getElementById('badgeTotalLines');
+    const btnReset = document.getElementById('btnReset');
+    const searchWorkspace = document.getElementById('searchWorkspace');
+    
+    // Controles de Pestañas
+    const tabButtonPages = document.getElementById('tabButtonPages');
+    const tabButtonTable = document.getElementById('tabButtonTable');
+    const tabContentPages = document.getElementById('tabContentPages');
+    const tabContentTable = document.getElementById('tabContentTable');
+
+    // Controles de Búsqueda
+    const searchQueryInput = document.getElementById('searchQuery');
+    const btnClearText = document.getElementById('btnClearText');
+    const btnSearch = document.getElementById('btnSearch');
+    const btnResetFilters = document.getElementById('btnResetFilters');
+    const resultsCount = document.getElementById('resultsCount');
+    const resultsList = document.getElementById('resultsList');
+
+    // Controles de Mapeo Interactivos
+    const selectDelimiter = document.getElementById('selectDelimiter');
+    const colMapFecha = document.getElementById('colMapFecha');
+    const colMapOperacion = document.getElementById('colMapOperacion');
+    const colMapDescripcion = document.getElementById('colMapDescripcion');
+    const colMapAbonos = document.getElementById('colMapAbonos');
+    const btnApplyMapping = document.getElementById('btnApplyMapping');
+
+    // Acciones de Tabla
+    const btnSelectAllRows = document.getElementById('btnSelectAllRows');
+    const btnDeselectAllRows = document.getElementById('btnDeselectAllRows');
+    const btnAddManualRow = document.getElementById('btnAddManualRow');
+    const transactionsTableBody = document.getElementById('transactionsTableBody');
+    const tableSummaryCount = document.getElementById('tableSummaryCount');
+    const tableSummarySum = document.getElementById('tableSummarySum');
+    const btnExportExcel = document.getElementById('btnExportExcel');
+    const btnExportPDF = document.getElementById('btnExportPDF');
+
+    // Visor de PDF
+    const activePageIndicator = document.getElementById('activePageIndicator');
+    const viewModeVisualBtn = document.getElementById('viewModeVisual');
+    const viewModeTextBtn = document.getElementById('viewModeText');
+    const pdfPageCanvas = document.getElementById('pdfPageCanvas');
+    const canvasContext = pdfPageCanvas.getContext('2d');
+    const visualCanvasContainer = document.getElementById('visualCanvasContainer');
+    const plainTextContainer = document.getElementById('plainTextContainer');
+    const renderLoader = document.getElementById('renderLoader');
+
+    // Toast Notificaciones
+    const toastNotification = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+    const btnDismissToast = document.getElementById('btnDismissToast');
+
+    // --- MANEJO DE NOTIFICACIONES ---
+    function showToast(message, type = 'info') {
+      toastMessage.textContent = message;
+      
+      if (type === 'error') {
+        toastIcon.innerHTML = `
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+          </svg>
+        `;
+      } else if (type === 'success') {
+        toastIcon.innerHTML = `
+          <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        `;
+      } else {
+        toastIcon.innerHTML = `
+          <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        `;
+      }
+
+      toastNotification.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toastNotification.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(dismissToast, 5000);
+    }
+
+    function dismissToast() {
+      toastNotification.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+      toastNotification.classList.remove('translate-y-0', 'opacity-100');
+    }
+
+    btnDismissToast.addEventListener('click', dismissToast);
+
+    // --- EVENTOS DE CARGA ---
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-600', 'bg-indigo-50/50');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-600', 'bg-indigo-50/50');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length > 0) {
+        handleFileSelection(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelection(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelection(file) {
+      if (!file) return;
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        showToast("Extensión de archivo inválida. Por favor, sube un PDF.", "error");
+        return;
+      }
+      pdfFileName = file.name;
+      loadAndParsePDF(file);
+    }
+
+    // --- CONSOLA DE INDEXACIÓN ---
+    function logToConsole(message, type = 'info') {
+      const logElement = document.createElement('div');
+      if (type === 'success') {
+        logElement.className = "text-emerald-400 font-semibold";
+      } else if (type === 'warn') {
+        logElement.className = "text-yellow-400";
+      } else {
+        logElement.className = "text-slate-300";
+      }
+      logElement.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      indexLogConsole.appendChild(logElement);
+      indexLogConsole.scrollTop = indexLogConsole.scrollHeight;
+    }
+
+    // --- EXTRACCIÓN ROBUSTA DE TODAS LAS PÁGINAS ---
+    async function loadAndParsePDF(file) {
+      dropZone.classList.add('hidden');
+      progressContainer.classList.remove('hidden');
+      docMetaInfo.classList.add('hidden');
+      searchWorkspace.classList.add('hidden');
+      
+      extractedPages = [];
+      rawPdfRows = [];
+      mappedTransactions = [];
+      activeResultPageNum = null;
+      indexLogConsole.innerHTML = "";
+      
+      updateProgressBar(0, "Cargando archivo PDF local...");
+      logToConsole(`Abriendo archivo: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`);
+
+      const reader = new FileReader();
+      reader.onload = async function() {
+        try {
+          const typedArray = new Uint8Array(this.result);
+          
+          const loadingTask = pdfjsLib.getDocument(typedArray);
+          currentPdfDoc = await loadingTask.promise;
+          const totalPages = currentPdfDoc.numPages;
+
+          logToConsole(`PDF cargado con éxito. Total de páginas: ${totalPages}`, "success");
+          updateProgressBar(15, `Analizando ${totalPages} páginas...`);
+
+          // Procesar secuencialmente cada página
+          for (let i = 1; i <= totalPages; i++) {
+            updateProgressBar(
+              15 + Math.floor((i / totalPages) * 75), 
+              `Leyendo y estructurando página ${i} de ${totalPages}...`
+            );
+
+            await new Promise(resolve => setTimeout(resolve, 5));
+
+            const page = await currentPdfDoc.getPage(i);
+            const textContent = await page.getTextContent();
+            
+            // Reconstruir lineas reales respetando la posición vertical aproximada (Y coordinate)
+            // Esto es crucial porque getTextContent a veces desordena los elementos
+            let items = textContent.items;
+            
+            // Agrupar elementos que compartan aproximadamente la misma posición vertical
+            let linesMap = {};
+            items.forEach(item => {
+              // Y coordinate es item.transform[5]
+              let y = Math.round(item.transform[5]);
+              // Buscar si existe una línea similar en un rango pequeño de píxeles
+              let foundY = Object.keys(linesMap).find(key => Math.abs(key - y) < 4);
+              if (foundY) {
+                linesMap[foundY].push(item);
+              } else {
+                linesMap[y] = [item];
+              }
+            });
+
+            // Ordenar las líneas de arriba hacia abajo (Y descendente) y ordenar items de izquierda a derecha (X ascendente)
+            let sortedY = Object.keys(linesMap).sort((a, b) => b - a);
+            let pageLinesText = [];
+
+            sortedY.forEach(y => {
+              let lineItems = linesMap[y].sort((a, b) => a.transform[4] - b.transform[4]);
+              // Unir textos cuidando de colocar un delimitador visible para el asistente
+              let lineText = lineItems.map(item => item.str).join('   ').trim();
+              if (lineText.length > 0) {
+                pageLinesText.push(lineText);
+                
+                // Almacenar fila para el asistente
+                rawPdfRows.push({
+                  id: 'raw_' + Math.random().toString(36).substr(2, 9),
+                  page: i,
+                  rawText: lineText
+                });
+              }
+            });
+
+            let fullPageRawText = pageLinesText.join('\n');
+            let charCount = fullPageRawText.length;
+
+            if (charCount > 0) {
+              logToConsole(`Pág. ${i}/${totalPages}: Indexadas ${pageLinesText.length} líneas de texto.`);
+            } else {
+              logToConsole(`Pág. ${i}/${totalPages}: No se detectó texto (página escaneada o vacía).`, "warn");
+            }
+
+            extractedPages.push({
+              pageNum: i,
+              text: fullPageRawText,
+              charsCount: charCount
+            });
+          }
+
+          logToConsole(`Extracción de líneas completada. Se obtuvieron ${rawPdfRows.length} filas totales.`, "success");
+          
+          // Dividir inicialmente las líneas usando el delimitador por defecto
+          applyColumnSplitting();
+
+          // Inicializar los selects del mapeador
+          initMappingSelectors();
+
+          // Ejecutar el primer mapeo sugerido automáticamente
+          autoSuggestMapping();
+
+          updateProgressBar(100, "¡Indexación e Inteligencia de Columnas Lista!");
+          setTimeout(() => {
+            progressContainer.classList.add('hidden');
+            renderUIWithDocument(totalPages);
+          }, 600);
+
+        } catch (error) {
+          console.error("Fallo de lectura:", error);
+          logToConsole(`ERROR CRÍTICO: No se pudo analizar el PDF. ${error.message}`, "warn");
+          showToast("Error al indexar el PDF. Podría estar protegido.", "error");
+          resetApplication();
+        }
+      };
+
+      reader.onerror = function() {
+        showToast("Error en el FileReader local.", "error");
+        resetApplication();
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function updateProgressBar(percent, text) {
+      progressBar.style.width = `${percent}%`;
+      progressPercent.textContent = `${percent}%`;
+      progressStatus.textContent = text;
+    }
+
+    // --- SEPARAR FILAS EN COLUMNAS SEGÚN EL DELIMITADOR ---
+    function applyColumnSplitting() {
+      const delimiterType = selectDelimiter.value;
+      let regex;
+      
+      if (delimiterType === 'multiSpace') {
+        regex = /\s{3,}/; // Múltiples espacios
+      } else if (delimiterType === 'singleSpace') {
+        regex = /\s+/;    // Espacio simple
+      } else if (delimiterType === 'tab') {
+        regex = /\t+/;
+      } else if (delimiterType === 'comma') {
+        regex = /,+/;
+      } else if (delimiterType === 'pipe') {
+        regex = /\|+/;
+      }
+
+      rawPdfRows.forEach(row => {
+        // Separar y limpiar elementos
+        row.cols = row.rawText.split(regex).map(col => col.trim()).filter(col => col.length > 0);
+      });
+    }
+
+    // --- INICIALIZAR SELECTS DE CONTROL ---
+    function initMappingSelectors() {
+      // Encontrar el número máximo de columnas en cualquier fila
+      let maxCols = 0;
+      rawPdfRows.forEach(row => {
+        if (row.cols.length > maxCols) maxCols = row.cols.length;
+      });
+
+      // Rellenar selectores de mapeo de columnas
+      const selectors = [colMapFecha, colMapOperacion, colMapDescripcion, colMapAbonos];
+      
+      selectors.forEach(select => {
+        select.innerHTML = "";
+        
+        // Agregar opción de omitir / manual
+        const omitOption = document.createElement("option");
+        omitOption.value = "-1";
+        omitOption.textContent = "Omitir columna (Vacío/Manual)";
+        select.appendChild(omitOption);
+
+        for (let j = 0; j < maxCols; j++) {
+          const opt = document.createElement("option");
+          opt.value = j.toString();
+          opt.textContent = `Columna ${j + 1}`;
+          select.appendChild(opt);
+        }
+      });
+    }
+
+    // --- AUTO-SUGERIR EL MAPEO ANALIZANDO EL PDF ---
+    function autoSuggestMapping() {
+      // Buscaremos patrones inteligentes de los primeros registros que tengan más de 2 columnas
+      let testRows = rawPdfRows.filter(row => row.cols.length >= 3).slice(0, 15);
+      
+      let dateColIdx = -1;
+      let opColIdx = -1;
+      let abonoColIdx = -1;
+      let descColIdx = -1;
+
+      // Intentar mapear cada índice analizando el contenido
+      let maxCols = 0;
+      testRows.forEach(r => { if (r.cols.length > maxCols) maxCols = r.cols.length; });
+
+      for (let c = 0; c < maxCols; c++) {
+        let dateScore = 0;
+        let numScore = 0;
+        let moneyScore = 0;
+        let textScore = 0;
+
+        testRows.forEach(row => {
+          if (!row.cols[c]) return;
+          const val = row.cols[c];
+
+          // Evaluar si es fecha
+          if (/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/.test(val) || /\d{1,2}\s+de\s+[a-zA-Z]+\s+de\s+\d{4}/i.test(val)) {
+            dateScore++;
+          }
+          // Evaluar si es número de operación (solo dígitos, longitud 5-12)
+          else if (/^\d{5,12}$/.test(val)) {
+            numScore++;
+          }
+          // Evaluar si es dinero
+          else if (/(?:[-+]\s*)?(?:\$\s*)?\b\d{1,3}(?:[\.,]\d{3})*[\.,]\d{2}\b/.test(val)) {
+            moneyScore++;
+          }
+          // Evaluar si es descripción
+          else if (val.length > 5 && /[a-zA-Z]{4,}/.test(val)) {
+            textScore++;
+          }
+        });
+
+        // Asignar según mayor puntaje
+        if (dateScore > testRows.length * 0.3 && dateColIdx === -1) {
+          dateColIdx = c;
+        } else if (moneyScore > testRows.length * 0.3 && abonoColIdx === -1) {
+          abonoColIdx = c;
+        } else if (numScore > testRows.length * 0.3 && opColIdx === -1) {
+          opColIdx = c;
+        } else if (textScore > testRows.length * 0.3 && descColIdx === -1) {
+          descColIdx = c;
+        }
+      }
+
+      // Si no encontramos mapeos de forma heurística, usamos valores por defecto lógicos
+      colMapFecha.value = dateColIdx !== -1 ? dateColIdx.toString() : "0";
+      colMapOperacion.value = opColIdx !== -1 ? opColIdx.toString() : "-1"; // Muchas veces no hay op
+      colMapDescripcion.value = descColIdx !== -1 ? descColIdx.toString() : "1";
+      colMapAbonos.value = abonoColIdx !== -1 ? abonoColIdx.toString() : "2";
+
+      // Aplicar el mapeo para estructurar los datos
+      executeStructureMapping();
+    }
+
+    // --- PROCESAR EL MAPEO A LA TABLA FINAL ---
+    function executeStructureMapping() {
+      const idxFecha = parseInt(colMapFecha.value, 10);
+      const idxOp = parseInt(colMapOperacion.value, 10);
+      const idxDesc = parseInt(colMapDescripcion.value, 10);
+      const idxAbonos = parseInt(colMapAbonos.value, 10);
+
+      mappedTransactions = [];
+      let carryForwardFecha = "S/F";
+
+      rawPdfRows.forEach(row => {
+        // Para que se considere una fila con contenido útil, debe tener columnas disponibles
+        if (row.cols.length === 0) return;
+
+        // Extraer Fecha
+        let fecha = "S/F";
+        if (idxFecha !== -1 && row.cols[idxFecha]) {
+          fecha = row.cols[idxFecha];
+          // Validar si tiene pinta de fecha o arrastrar de la fila anterior
+          if (/\b\d{1,2}[\/\-\.]\d{1,2}/.test(fecha)) {
+            carryForwardFecha = fecha;
+          } else {
+            fecha = carryForwardFecha;
+          }
+        } else {
+          fecha = carryForwardFecha;
+        }
+
+        // Extraer Operación
+        let operacion = "N/D";
+        if (idxOp !== -1 && row.cols[idxOp]) {
+          operacion = row.cols[idxOp];
+        }
+
+        // Extraer Descripción
+        let descripcion = "";
+        if (idxDesc !== -1 && row.cols[idxDesc]) {
+          descripcion = row.cols[idxDesc];
+        } else {
+          // Si no se asigna, tomar el texto completo simplificado
+          descripcion = row.rawText.substring(0, 80);
+        }
+
+        // Extraer Abono
+        let abonoVal = 0;
+        if (idxAbonos !== -1 && row.cols[idxAbonos]) {
+          const moneyStr = row.cols[idxAbonos];
+          // Limpiar caracteres no numéricos excepto puntos y comas
+          let cleanM = moneyStr.replace(/[^\d\.,\-+]/g, '');
+          let isNegative = cleanM.startsWith('-');
+          cleanM = cleanM.replace(/[-+]/g, '');
+
+          if (cleanM.length > 0) {
+            if (cleanM.includes(',') && cleanM.includes('.')) {
+              abonoVal = parseFloat(cleanM.replace(/\./g, '').replace(',', '.'));
+            } else if (cleanM.includes(',')) {
+              const parts = cleanM.split(',');
+              if (parts[parts.length - 1].length === 2) {
+                abonoVal = parseFloat(cleanM.replace(',', '.'));
+              } else {
+                abonoVal = parseFloat(cleanM.replace(/,/g, ''));
+              }
+            } else {
+              abonoVal = parseFloat(cleanM);
+            }
+            if (isNegative) abonoVal = -abonoVal;
+          }
+        }
+
+        // Limpiar descripciones que parezcan títulos o cabeceras inútiles
+        const excludeKeywords = /saldo|balance|resumen|periodo|titular|cuenta|p[aá]gina|total/i;
+        let isHeader = excludeKeywords.test(descripcion) && abonoVal === 0;
+
+        if (descripcion.length > 2 && !isHeader) {
+          mappedTransactions.push({
+            id: 'trx_' + Math.random().toString(36).substr(2, 9),
+            page: row.page,
+            fecha: fecha,
+            operacion: operacion,
+            descripcion: descripcion,
+            abono: abonoVal,
+            active: true // Activa para exportar por defecto
+          });
+        }
+      });
+    }
+
+    // --- RENDERIZADO DEL WORKSPACE ---
+    function renderUIWithDocument(totalPages) {
+      loadedDocName.textContent = pdfFileName;
+      loadedDocPages.textContent = `(${totalPages} ${totalPages === 1 ? 'página' : 'páginas'} analizadas)`;
+      badgeTotalLines.textContent = `${rawPdfRows.length} filas de datos encontradas`;
+      
+      updateSummaryMetrics();
+
+      docMetaInfo.classList.remove('hidden');
+      searchWorkspace.classList.remove('hidden');
+
+      switchTab("pages");
+
+      performSearch();
+      renderTransactionsTable();
+      showToast(`Análisis completo. Se mapearon todas las filas de las ${totalPages} páginas.`, "success");
+    }
+
+    function updateSummaryMetrics() {
+      const activeRows = mappedTransactions.filter(t => t.active);
+      tableSummaryCount.textContent = activeRows.length;
+      
+      const totalSum = activeRows.reduce((acc, curr) => acc + curr.abono, 0);
+      tableSummarySum.textContent = `$${totalSum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // --- PESTAÑAS ---
+    function switchTab(tabId) {
+      currentActiveTab = tabId;
+      if (tabId === "pages") {
+        tabButtonPages.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700 shadow-2xs";
+        tabButtonTable.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50";
+        tabContentPages.classList.remove('hidden');
+        tabContentTable.classList.add('hidden');
+      } else {
+        tabButtonTable.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all bg-indigo-50 text-indigo-700 shadow-2xs";
+        tabButtonPages.className = "flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all text-slate-600 hover:bg-slate-50";
+        tabContentTable.classList.remove('hidden');
+        tabContentPages.classList.add('hidden');
+        renderTransactionsTable();
+      }
+    }
+
+    tabButtonPages.addEventListener('click', () => switchTab("pages"));
+    tabButtonTable.addEventListener('click', () => switchTab("table"));
+
+    // --- BÚSQUEDA GENERAL ---
+    function performSearch() {
+      const query = searchQueryInput.value.trim().toLowerCase();
+      const filteredResults = [];
+
+      extractedPages.forEach(page => {
+        let textMatches = true;
+
+        if (query.length > 0) {
+          textMatches = page.text.toLowerCase().includes(query);
+        }
+
+        if (textMatches) {
+          let snippet = "";
+          if (query.length > 0) {
+            const index = page.text.toLowerCase().indexOf(query);
+            const start = Math.max(0, index - 40);
+            const end = Math.min(page.text.length, index + query.length + 50);
+            snippet = page.text.slice(start, end);
+            if (start > 0) snippet = "..." + snippet;
+            if (end < page.text.length) snippet = snippet + "...";
+          } else {
+            snippet = page.text.substring(0, 100) + (page.text.length > 100 ? "..." : "");
+          }
+
+          if (page.charsCount === 0) {
+            snippet = "[Página sin texto estructurado. Usa el Render Real]";
+          }
+
+          filteredResults.push({
+            pageNum: page.pageNum,
+            fullText: page.text,
+            snippet: snippet,
+            isEmpty: page.charsCount === 0
+          });
+        }
+      });
+
+      renderResultsList(filteredResults, query);
+      renderTransactionsTable();
+    }
+
+    function renderResultsList(results, activeQuery) {
+      resultsCount.textContent = results.length;
+      resultsList.innerHTML = "";
+
+      if (results.length === 0) {
+        resultsList.innerHTML = `
+          <div class="text-center py-20 text-slate-400">
+            <svg class="w-12 h-12 text-slate-300 mx-auto mb-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-sm font-bold text-slate-600">Sin coincidencias de búsqueda</p>
+            <p class="text-xs mt-1">Intenta con otro término.</p>
+          </div>
+        `;
+        return;
+      }
+
+      results.forEach(res => {
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-xl border transition-all cursor-pointer text-left flex flex-col gap-2 ${
+          activeResultPageNum === res.pageNum 
+            ? 'bg-indigo-50/75 border-indigo-500 shadow-xs ring-1 ring-indigo-500/20' 
+            : 'bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-slate-300'
+        }`;
+        
+        let highlightedSnippet = res.snippet;
+        if (activeQuery.length > 0 && !res.isEmpty) {
+          const regex = new RegExp(`(${escapeRegExp(activeQuery)})`, 'gi');
+          highlightedSnippet = res.snippet.replace(regex, '<mark class="highlight-match">$1</mark>');
+        }
+
+        const linesOnPage = rawPdfRows.filter(t => t.page === res.pageNum);
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <span class="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-md">Pág. ${res.pageNum}</span>
+              <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">${linesOnPage.length} líneas</span>
+            </div>
+            <span class="text-[11px] text-slate-400 font-medium">
+              ${res.fullText.length} carac.
+            </span>
+          </div>
+          <p class="text-xs text-slate-600 font-normal italic bg-white p-2.5 rounded-lg border border-slate-100 line-clamp-2 leading-relaxed">
+            ${highlightedSnippet}
+          </p>
+        `;
+
+        card.addEventListener('click', () => {
+          selectActiveResult(res.pageNum);
+        });
+
+        resultsList.appendChild(card);
+      });
+
+      if (results.length > 0 && !activeResultPageNum) {
+        selectActiveResult(results[0].pageNum);
+      }
+    }
+
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function selectActiveResult(pageNum) {
+      activeResultPageNum = pageNum;
+      activePageIndicator.textContent = `Página ${pageNum} de ${currentPdfDoc.numPages}`;
+      
+      performSearchKeepSelection();
+      renderActivePage();
+    }
+
+    function performSearchKeepSelection() {
+      const query = searchQueryInput.value.trim().toLowerCase();
+      const filteredResults = [];
+
+      extractedPages.forEach(page => {
+        let textMatches = true;
+
+        if (query.length > 0) {
+          textMatches = page.text.toLowerCase().includes(query);
+        }
+
+        if (textMatches) {
+          let snippet = "";
+          if (query.length > 0) {
+            const index = page.text.toLowerCase().indexOf(query);
+            const start = Math.max(0, index - 40);
+            const end = Math.min(page.text.length, index + query.length + 50);
+            snippet = page.text.slice(start, end);
+            if (start > 0) snippet = "..." + snippet;
+            if (end < page.text.length) snippet = snippet + "...";
+          } else {
+            snippet = page.text.substring(0, 100) + (page.text.length > 100 ? "..." : "");
+          }
+
+          if (page.charsCount === 0) {
+            snippet = "[Página sin texto estructurado. Usa el Render Real]";
+          }
+
+          filteredResults.push({
+            pageNum: page.pageNum,
+            fullText: page.text,
+            snippet: snippet,
+            isEmpty: page.charsCount === 0
+          });
+        }
+      });
+
+      renderResultsList(filteredResults, query);
+    }
+
+    async function renderActivePage() {
+      if (!currentPdfDoc || !activeResultPageNum) return;
+
+      const pageData = extractedPages.find(p => p.pageNum === activeResultPageNum);
+      if (pageData) {
+        if (pageData.charsCount === 0) {
+          plainTextContainer.innerHTML = `<span class="text-slate-400 italic">No se pudo extraer texto plano de esta página. Cambia a "Página Real (Render)" en la parte superior para visualizarla.</span>`;
+        } else {
+          const query = searchQueryInput.value.trim();
+          let formattedText = pageData.text;
+
+          if (query.length > 0) {
+            const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+            formattedText = pageData.text.replace(regex, '<mark class="bg-yellow-300 text-slate-900 px-1 font-bold rounded-xs">$1</mark>');
+          }
+          plainTextContainer.innerHTML = formattedText;
+        }
+      }
+
+      renderLoader.classList.remove('hidden');
+      try {
+        const page = await currentPdfDoc.getPage(activeResultPageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        
+        pdfPageCanvas.height = viewport.height;
+        pdfPageCanvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: canvasContext,
+          viewport: viewport
+        };
+
+        await page.render(renderContext).promise;
+      } catch (error) {
+        console.error("Error al pintar canvas:", error);
+      } finally {
+        renderLoader.classList.add('hidden');
+      }
+    }
+
+    // --- PINTAR LA TABLA INTERACTIVA DE MAPEO ---
+    function renderTransactionsTable() {
+      transactionsTableBody.innerHTML = "";
+      const query = searchQueryInput.value.trim().toLowerCase();
+
+      // Filtrar resultados por palabra clave
+      const filteredTrxs = mappedTransactions.filter(t => {
+        if (query.length === 0) return true;
+        return t.fecha.toLowerCase().includes(query) ||
+               t.operacion.toLowerCase().includes(query) ||
+               t.descripcion.toLowerCase().includes(query) ||
+               t.abono.toString().includes(query);
+      });
+
+      if (filteredTrxs.length === 0) {
+        transactionsTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-10 text-slate-400 italic">
+              No se encontraron filas que coincidan con la búsqueda actual.
+            </td>
+          </tr>
+        `;
+        updateSummaryMetrics();
+        return;
+      }
+
+      filteredTrxs.forEach(t => {
+        const row = document.createElement('tr');
+        row.className = `transition-colors ${t.active ? 'bg-white hover:bg-indigo-50/20' : 'bg-slate-50/50 hover:bg-slate-100 opacity-60'}`;
+        
+        row.innerHTML = `
+          <td class="py-2.5 px-4 text-center">
+            <input type="checkbox" ${t.active ? 'checked' : ''} onchange="toggleRowActive('${t.id}')" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" />
+          </td>
+          <td class="py-2.5 px-4 text-center font-bold text-slate-500">${t.page}</td>
+          <td class="py-2.5 px-4">
+            <input type="text" value="${t.fecha}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'fecha', this.value)" />
+          </td>
+          <td class="py-2.5 px-4">
+            <input type="text" value="${t.operacion}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'operacion', this.value)" />
+          </td>
+          <td class="py-2.5 px-4">
+            <input type="text" value="${t.descripcion}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 transition-all" onchange="updateTransactionField('${t.id}', 'descripcion', this.value)" />
+          </td>
+          <td class="py-2.5 px-4 text-right">
+            <input type="number" step="0.01" value="${t.abono}" class="w-full bg-transparent hover:bg-white focus:bg-white border border-transparent focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 rounded-md px-1.5 py-0.5 text-right font-bold text-indigo-700 transition-all" onchange="updateTransactionField('${t.id}', 'abono', this.value)" />
+          </td>
+          <td class="py-2.5 px-4 text-center">
+            <button onclick="deleteTransactionRow('${t.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors" title="Eliminar fila de este reporte">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </td>
+        `;
+        transactionsTableBody.appendChild(row);
+      });
+
+      updateSummaryMetrics();
+    }
+
+    // --- ACCIONES GLOBALES DE LA TABLA ---
+    window.toggleRowActive = function(id) {
+      const idx = mappedTransactions.findIndex(t => t.id === id);
+      if (idx !== -1) {
+        mappedTransactions[idx].active = !mappedTransactions[idx].active;
+        renderTransactionsTable();
+      }
+    };
+
+    window.updateTransactionField = function(id, field, value) {
+      const idx = mappedTransactions.findIndex(t => t.id === id);
+      if (idx !== -1) {
+        if (field === 'abono') {
+          mappedTransactions[idx][field] = parseFloat(value) || 0;
+        } else {
+          mappedTransactions[idx][field] = value;
+        }
+        renderTransactionsTable();
+      }
+    };
+
+    window.deleteTransactionRow = function(id) {
+      mappedTransactions = mappedTransactions.filter(t => t.id !== id);
+      renderTransactionsTable();
+      showToast("Fila removida de la vista actual.", "info");
+    };
+
+    // Agregar Fila Manual
+    btnAddManualRow.addEventListener('click', () => {
+      const newTrx = {
+        id: 'trx_' + Math.random().toString(36).substr(2, 9),
+        page: activeResultPageNum || 1,
+        fecha: new Date().toLocaleDateString('es-ES'),
+        operacion: "MANUAL",
+        descripcion: "Nueva transacción añadida manualmente",
+        abono: 0.00,
+        active: true
+      };
+      mappedTransactions.unshift(newTrx);
+      renderTransactionsTable();
+      showToast("Fila manual insertada al inicio.", "success");
+    });
+
+    // Seleccionar y Deseleccionar todo
+    btnSelectAllRows.addEventListener('click', () => {
+      mappedTransactions.forEach(t => t.active = true);
+      renderTransactionsTable();
+      showToast("Se activaron todos los registros.", "info");
+    });
+
+    btnDeselectAllRows.addEventListener('click', () => {
+      mappedTransactions.forEach(t => t.active = false);
+      renderTransactionsTable();
+      showToast("Se desactivaron todos los registros.", "info");
+    });
+
+    // Aplicar Mapeo del Asistente
+    btnApplyMapping.addEventListener('click', () => {
+      applyColumnSplitting();
+      executeStructureMapping();
+      renderTransactionsTable();
+      showToast("Configuración de columnas aplicada correctamente.", "success");
+    });
+
+    // Eventos de cambios en selectores de mapeo para re-estructuración dinámica instantánea
+    const mappers = [selectDelimiter, colMapFecha, colMapOperacion, colMapDescripcion, colMapAbonos];
+    mappers.forEach(mapper => {
+      mapper.addEventListener('change', () => {
+        applyColumnSplitting();
+        executeStructureMapping();
+        renderTransactionsTable();
+      });
+    });
+
+    // --- EXPORTAR A EXCEL (XLSX) ---
+    btnExportExcel.addEventListener('click', () => {
+      const activeRows = mappedTransactions.filter(t => t.active);
+      if (activeRows.length === 0) {
+        showToast("No hay registros marcados o activos para exportar.", "error");
+        return;
+      }
+
+      try {
+        const query = searchQueryInput.value.trim().toLowerCase();
+        
+        // Filtrar respetando la búsqueda actual en pantalla
+        const filteredData = activeRows.filter(t => {
+          if (query.length === 0) return true;
+          return t.fecha.toLowerCase().includes(query) ||
+                 t.operacion.toLowerCase().includes(query) ||
+                 t.descripcion.toLowerCase().includes(query) ||
+                 t.abono.toString().includes(query);
+        });
+
+        if (filteredData.length === 0) {
+          showToast("No hay registros activos que coincidan con la búsqueda para exportar.", "error");
+          return;
+        }
+
+        // Mapear columnas exactamente con los datos de las filas
+        const excelRows = filteredData.map(t => ({
+          "Página PDF": t.page,
+          "Fecha": t.fecha,
+          "N° Operación": t.operacion,
+          "Descripción": t.descripcion,
+          "Abono ($)": t.abono
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(excelRows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Transacciones Extraídas");
+
+        // Formatear anchos
+        worksheet["!cols"] = [
+          { wch: 12 }, // Pág
+          { wch: 18 }, // Fecha
+          { wch: 20 }, // Operación
+          { wch: 50 }, // Descripción
+          { wch: 16 }  // Abono
+        ];
+
+        const excelFileName = pdfFileName.replace(/\.[^/.]+$/, "") + "_FilasMapeadas.xlsx";
+        XLSX.writeFile(workbook, excelFileName);
+        showToast(`Archivo Excel exportado con éxito como ${excelFileName}`, "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Error al exportar a Excel.", "error");
+      }
+    });
+
+    // --- EXPORTAR A PDF (REPORTE ESTRUCTURADO) ---
+    btnExportPDF.addEventListener('click', () => {
+      const activeRows = mappedTransactions.filter(t => t.active);
+      if (activeRows.length === 0) {
+        showToast("No hay registros activos marcados para exportar.", "error");
+        return;
+      }
+
+      try {
+        const query = searchQueryInput.value.trim().toLowerCase();
+        
+        // Filtrar según el término de búsqueda
+        const filteredData = activeRows.filter(t => {
+          if (query.length === 0) return true;
+          return t.fecha.toLowerCase().includes(query) ||
+                 t.operacion.toLowerCase().includes(query) ||
+                 t.descripcion.toLowerCase().includes(query) ||
+                 t.abono.toString().includes(query);
+        });
+
+        if (filteredData.length === 0) {
+          showToast("No hay registros activos que coincidan con la búsqueda para exportar.", "error");
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        // Título del PDF
+        doc.setFontSize(18);
+        doc.setTextColor(30, 41, 59); // Slate-800
+        doc.text("Reporte de Transacciones PDF Mapeadas", 14, 20);
+        
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139); // Slate-500
+        doc.text(`Origen: ${pdfFileName}`, 14, 26);
+        doc.text(`Fecha de exportación: ${new Date().toLocaleString()}`, 14, 31);
+        
+        if (query) {
+          doc.text(`Filtro activo de búsqueda: "${query}"`, 14, 36);
+        }
+
+        // Construir cuerpo de la tabla
+        const tableBody = filteredData.map(t => [
+          t.page,
+          t.fecha,
+          t.operacion,
+          t.descripcion,
+          `$${t.abono.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        ]);
+
+        const totalSum = filteredData.reduce((acc, curr) => acc + curr.abono, 0);
+
+        doc.autoTable({
+          head: [['Pág', 'Fecha', 'N° Operación', 'Descripción', 'Abonos']],
+          body: tableBody,
+          startY: query ? 40 : 36,
+          theme: 'striped',
+          headStyles: { fillHexColor: '#4f46e5', textColor: '#ffffff', fontStyle: 'bold' }, // Indigo-600
+          styles: { fontSize: 8.5, cellPadding: 2.5 },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 12 },
+            1: { cellWidth: 28 },
+            2: { cellWidth: 32 },
+            3: { cellWidth: 'auto' },
+            4: { halign: 'right', cellWidth: 28 }
+          },
+          foot: [[
+            '', '', '', 
+            'MONTO TOTAL ACUMULADO:', 
+            `$${totalSum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ]],
+          footStyles: { fillHexColor: '#f8fafc', textColor: '#1e293b', fontStyle: 'bold', halign: 'right' },
+          margin: { top: 30, bottom: 20 }
+        });
+
+        const pdfName = pdfFileName.replace(/\.[^/.]+$/, "") + "_FilasMapeadas.pdf";
+        doc.save(pdfName);
+        showToast(`Documento PDF exportado con éxito como ${pdfName}`, "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Error al compilar el reporte PDF.", "error");
+      }
+    });
+
+    // --- ACCIONES GENERALES ---
+
+    viewModeVisualBtn.addEventListener('click', () => {
+      currentViewMode = "visual";
+      viewModeVisualBtn.className = "py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
+      viewModeTextBtn.className = "py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
+      visualCanvasContainer.classList.remove('hidden');
+      plainTextContainer.classList.add('hidden');
+    });
+
+    viewModeTextBtn.addEventListener('click', () => {
+      currentViewMode = "text";
+      viewModeTextBtn.className = "py-1.5 rounded-md bg-white shadow-xs text-indigo-700 font-semibold focus:outline-none";
+      viewModeVisualBtn.className = "py-1.5 rounded-md text-slate-600 hover:bg-white/50 focus:outline-none";
+      plainTextContainer.classList.remove('hidden');
+      visualCanvasContainer.classList.add('hidden');
+    });
+
+    searchQueryInput.addEventListener('input', () => {
+      if (searchQueryInput.value.length > 0) {
+        btnClearText.classList.remove('hidden');
+      } else {
+        btnClearText.classList.add('hidden');
+      }
+    });
+
+    btnClearText.addEventListener('click', () => {
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      performSearch();
+    });
+
+    btnSearch.addEventListener('click', () => {
+      activeResultPageNum = null;
+      performSearch();
+    });
+
+    searchQueryInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        activeResultPageNum = null;
+        performSearch();
+      }
+    });
+
+    btnResetFilters.addEventListener('click', () => {
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      activeResultPageNum = null;
+      performSearch();
+      showToast("Filtros de búsqueda reiniciados.", "info");
+    });
+
+    btnReset.addEventListener('click', resetApplication);
+
+    function resetApplication() {
+      currentPdfDoc = null;
+      pdfFileName = "";
+      extractedPages = [];
+      rawPdfRows = [];
+      mappedTransactions = [];
+      activeResultPageNum = null;
+
+      searchQueryInput.value = "";
+      btnClearText.classList.add('hidden');
+      fileInput.value = ""; 
+
+      docMetaInfo.classList.add('hidden');
+      searchWorkspace.classList.add('hidden');
+      progressContainer.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+
+      canvasContext.clearRect(0, 0, pdfPageCanvas.width, pdfPageCanvas.height);
+      pdfPageCanvas.width = 0;
+      pdfPageCanvas.height = 0;
+      activePageIndicator.textContent = "Sin selección";
+      plainTextContainer.innerHTML = "Selecciona una coincidencia para visualizar el texto extraído de la página.";
+    }
+  </script>
+</body>
+</html>
