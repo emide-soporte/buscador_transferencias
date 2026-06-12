@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscador de Transferencias — BancoEstado</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f3f5fb;
+  --sur:#ffffff;
+  --sur2:#eef0f8;
+  --bdr:#dde2f0;
+  --bdr2:#c4cce0;
+  --tx:#13182a;
+  --tx2:#48506a;
+  --tx3:#8890a8;
+  --ac:#1d50e0;
+  --acl:#ecf0fd;
+  --acb:#b4c4f8;
+  --gn:#166534;
+  --gnl:#f0fdf4;
+  --gnb:#86efac;
+  --yw:#fef9c3;
+  --yt:#78350f;
+  --r:8px;
+}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
+
+/* HEADER */
+header{background:var(--sur);border-bottom:1px solid var(--bdr);height:52px;display:flex;align-items:center;padding:0 22px;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.hico{width:28px;height:28px;background:var(--ac);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hico svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.2}
+.htxt h1{font-size:14px;font-weight:700;line-height:1.2}
+.htxt p{font-size:11px;color:var(--tx3)}
+
+/* LAYOUT */
+.wrap{display:grid;grid-template-columns:310px 1fr;height:calc(100vh - 52px);overflow:hidden}
+
+/* SIDEBAR */
+.side{background:var(--sur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
+.side::-webkit-scrollbar{width:4px}.side::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+.sec{padding:15px 17px;border-bottom:1px solid var(--bdr)}
+.sec:last-child{border-bottom:none}
+.lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-bottom:9px}
+
+/* DROPZONE */
+.drop{border:2px dashed var(--bdr2);border-radius:10px;padding:20px 14px;text-align:center;cursor:pointer;transition:.18s;background:var(--bg)}
+.drop:hover,.drop.over{border-color:var(--ac);background:var(--acl)}
+.drop.ok{border-color:var(--gn);background:var(--gnl);cursor:default;padding:12px}
+.dico{width:38px;height:38px;border-radius:50%;background:var(--sur);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.dico svg{width:18px;height:18px;stroke:var(--ac);fill:none;stroke-width:1.7}
+.drop.ok .dico svg{stroke:var(--gn)}
+.drop p{font-size:12px;color:var(--tx2);line-height:1.5}
+.drop strong{color:var(--tx);font-weight:600}
+.drop small{font-size:11px;color:var(--tx3);display:block;margin-top:2px}
+#fi{display:none}
+
+/* FILE BADGE */
+.fbadge{display:none;align-items:center;gap:7px;background:var(--gnl);border:1px solid var(--gnb);border-radius:var(--r);padding:8px 10px;margin-top:8px}
+.fbadge.on{display:flex}
+.fbadge svg{width:13px;height:13px;stroke:var(--gn);fill:none;flex-shrink:0;stroke-width:2.5}
+.fn{font-size:11px;font-weight:700;color:var(--gn);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs{font-size:10px;color:#15803d}
+
+/* PROGRESS */
+.prog{display:none;margin-top:10px}.prog.on{display:block}
+.ptr{background:var(--sur2);border-radius:99px;height:5px;overflow:hidden}
+.pfi{height:100%;background:var(--ac);border-radius:99px;transition:width .22s;width:0}
+.plb{font-size:10px;color:var(--tx3);margin-top:5px;text-align:center}
+
+/* SEARCH */
+.sbox{position:relative}
+.sico{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--tx3);fill:none;pointer-events:none}
+.sinp{width:100%;padding:8px 30px 8px 28px;border:1px solid var(--bdr);border-radius:var(--r);font-size:14px;background:var(--bg);color:var(--tx);outline:none;transition:.15s}
+.sinp:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(29,80,224,.08);background:#fff}
+.xcl{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:17px;height:17px;background:var(--tx3);border:none;border-radius:50%;cursor:pointer;color:#fff;font-size:10px;display:none;align-items:center;justify-content:center}
+.xcl.on{display:flex}.xcl:hover{background:var(--tx2)}
+.hint{font-size:11px;color:var(--tx3);margin-top:6px;line-height:1.6}
+
+/* BUTTON */
+.btn{width:100%;padding:9px;background:var(--ac);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;transition:.15s;white-space:nowrap}
+.btn:hover:not(:disabled){background:#1540c0}.btn:active:not(:disabled){transform:scale(.98)}
+.btn:disabled{background:var(--tx3);cursor:not-allowed}
+.btn svg{width:14px;height:14px;stroke:#fff;fill:none;flex-shrink:0}
+.btn.loading{opacity:.75;cursor:wait}
+
+/* SUMMARY */
+.sumbox{background:var(--sur2);border-radius:var(--r);overflow:hidden}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-size:13px;border-bottom:1px solid var(--bdr)}
+.srow:last-child{border-bottom:none}
+.sk{color:var(--tx2)}.sv{font-weight:700}
+.sv.ac{color:var(--ac)}.sv.gn{color:var(--gn)}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px}
+.ttitle{font-size:13px;font-weight:700;color:var(--tx);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tright{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pill{background:var(--acl);color:var(--ac);border:1px solid var(--acb);border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700;display:none;white-space:nowrap}
+.pill.on{display:inline-flex}
+.expbtn{padding:6px 12px;border:1px solid var(--bdr2);border-radius:var(--r);background:var(--sur);font-size:12px;font-weight:700;color:var(--tx2);cursor:pointer;display:none;align-items:center;gap:5px;transition:.15s;white-space:nowrap}
+.expbtn.on{display:flex}.expbtn:hover{background:var(--sur2);color:var(--tx)}
+.expbtn svg{width:12px;height:12px;stroke:currentColor;fill:none}
+
+/* TABLE */
+.twrap{flex:1;overflow:auto}
+.twrap::-webkit-scrollbar{width:6px;height:6px}
+.twrap::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+thead th{background:var(--sur);border-bottom:2px solid var(--bdr);padding:9px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--tx3);position:sticky;top:0;z-index:10;white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:var(--ac)}.thsorted{color:var(--ac)!important}
+td{padding:9px 14px;border-bottom:1px solid var(--bdr);background:var(--sur);vertical-align:middle}
+tr:hover td{background:#f6f8ff}
+.tdf{white-space:nowrap;color:var(--tx2);font-size:12px;font-weight:600}
+.tdo{font-family:'Courier New',monospace;font-size:11px;color:var(--tx3);white-space:nowrap}
+.tdd{max-width:360px;word-break:break-word;color:var(--tx);line-height:1.4}
+.tdd mark{background:var(--yw);color:var(--yt);border-radius:2px;padding:0 2px;font-style:normal}
+.tda{text-align:right;white-space:nowrap;font-weight:700;color:var(--gn);font-size:14px}
+.tdp{text-align:center;color:var(--tx3);font-size:12px}
+tfoot td{background:var(--gnl)!important;border-top:2px solid var(--gnb)!important;font-weight:700}
+.tot-lbl{color:var(--tx2);font-size:11px}
+.tot-val{text-align:right;font-weight:700;color:var(--gn);font-size:15px}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:60px 20px;text-align:center;height:100%}
+.empty svg{width:44px;height:44px;stroke:var(--tx3);fill:none;stroke-width:1.2;margin-bottom:12px}
+.empty h3{font-size:14px;font-weight:700;color:var(--tx2);margin-bottom:5px}
+.empty p{font-size:12px;color:var(--tx3);max-width:240px;line-height:1.6}
+
+/* STATUS MESSAGES */
+.status-bar{background:var(--acl);border-bottom:1px solid var(--acb);padding:8px 20px;font-size:12px;color:var(--ac);display:none;align-items:center;gap:8px}
+.status-bar.on{display:flex}
+.spinner{width:14px;height:14px;border:2px solid var(--acb);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hico"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="3"/><path d="M8 9h8M8 13h5M8 17h3"/></svg></div>
+  <div class="htxt">
+    <h1>Buscador de Transferencias Bancarias</h1>
+    <p>Cartola CuentaRUT BancoEstado — busca por descripción en todas las páginas</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- SIDEBAR -->
+  <div class="side">
+
+    <div class="sec">
+      <div class="lbl">Archivo PDF</div>
+      <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+        <div class="dico">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <p><strong>Arrastra tu PDF aquí</strong><br>o haz clic para seleccionar</p>
+        <small>Cartola CuentaRUT BancoEstado</small>
+      </div>
+      <input type="file" id="fi" accept=".pdf">
+      <div class="fbadge" id="fbadge">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <div><div class="fn" id="fname">—</div><div class="fs" id="fpages">—</div></div>
+      </div>
+      <div class="prog" id="prog">
+        <div class="ptr"><div class="pfi" id="pfi"></div></div>
+        <div class="plb" id="plb">Procesando…</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="lbl">Buscar en descripción</div>
+      <div class="sbox">
+        <svg class="sico" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" class="sinp" id="sq" placeholder="Nombre, empresa, TEF, ABONO…">
+        <button class="xcl" id="xcl" onclick="clearQ()">×</button>
+      </div>
+      <div class="hint">Busca en la descripción de todos los movimientos del PDF. Solo muestra filas con <strong>Abono</strong>.</div>
+      <button class="btn" id="sbtn" onclick="run()" disabled>
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Buscar y mostrar resultados
+      </button>
+    </div>
+
+    <div class="sec" id="sumSec" style="display:none">
+      <div class="lbl">Resumen</div>
+      <div class="sumbox">
+        <div class="srow"><span class="sk">Resultados</span><span class="sv ac" id="sN">0</span></div>
+        <div class="srow"><span class="sk">Total abonos</span><span class="sv gn" id="sAb">$0</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <span class="ttitle" id="ttitle">Sube un PDF para comenzar</span>
+      <div class="tright">
+        <span class="pill" id="pill">0</span>
+        <button class="expbtn" id="expbtn" onclick="exportCSV()">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar CSV
+        </button>
+      </div>
+    </div>
+    <div class="status-bar" id="statusBar">
+      <div class="spinner"></div>
+      <span id="statusMsg">Analizando con IA…</span>
+    </div>
+    <div class="twrap" id="twrap">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <h3>Sin archivo cargado</h3>
+        <p>Sube una cartola PDF de BancoEstado CuentaRUT y busca por descripción.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let allRows = [];   // [{fecha, nop, desc, abono, page}]
+let results = [];
+let lastQ = '';
+let sortCol = 'page';
+let sortDir = {};
+let pdfPageTexts = []; // raw text per page for Claude
+
+/* ─── DRAG & DROP ─── */
+const dz = document.getElementById('dz');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f && f.type === 'application/pdf') loadPDF(f); });
+document.getElementById('fi').addEventListener('change', e => { if (e.target.files[0]) loadPDF(e.target.files[0]); });
+
+/* ─── LOAD & EXTRACT PDF TEXT ─── */
+async function loadPDF(file) {
+  document.getElementById('fname').textContent = file.name;
+  document.getElementById('fbadge').classList.add('on');
+  dz.classList.add('ok'); dz.onclick = null;
+
+  const prog = document.getElementById('prog');
+  const pfi = document.getElementById('pfi');
+  const plb = document.getElementById('plb');
+  prog.classList.add('on'); pfi.style.width = '3%'; plb.textContent = 'Leyendo archivo…';
+
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const total = pdf.numPages;
+
+  pdfPageTexts = [];
+  for (let i = 1; i <= total; i++) {
+    const pg = await pdf.getPage(i);
+    const content = await pg.getTextContent();
+    // Reconstruct layout preserving X positions so columns are visible
+    const byY = {};
+    content.items.forEach(it => {
+      const y = Math.round(it.transform[5]);
+      if (!byY[y]) byY[y] = [];
+      byY[y].push({ x: it.transform[4], str: it.str });
+    });
+    const ys = Object.keys(byY).map(Number).sort((a, b) => b - a);
+    const lines = ys.map(y => {
+      const sorted = byY[y].sort((a, b) => a.x - b.x);
+      let s = '', lastX = 0;
+      sorted.forEach(it => {
+        if (s && it.x - lastX > 8) s += ' '.repeat(Math.min(Math.round((it.x - lastX) / 6), 25));
+        s += it.str;
+        lastX = it.x + it.str.length * 5.5;
+      });
+      return s;
+    }).filter(l => l.trim());
+
+    pdfPageTexts.push({ page: i, text: lines.join('\n') });
+    pfi.style.width = Math.round(3 + (i / total) * 92) + '%';
+    plb.textContent = `Leyendo página ${i} de ${total}…`;
+  }
+
+  pfi.style.width = '100%';
+  plb.textContent = `✓ ${total} páginas leídas — listo para buscar`;
+  setTimeout(() => prog.classList.remove('on'), 2000);
+
+  document.getElementById('fpages').textContent = `${total} páginas`;
+  document.getElementById('sbtn').disabled = false;
+  setEmpty('ready');
+  document.getElementById('ttitle').textContent = 'PDF listo — ingresa una búsqueda';
+}
+
+/* ─── SEARCH INPUT ─── */
+document.getElementById('sq').addEventListener('input', function () {
+  document.getElementById('xcl').classList.toggle('on', this.value.length > 0);
+});
+document.getElementById('sq').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+function clearQ() { document.getElementById('sq').value = ''; document.getElementById('xcl').classList.remove('on'); }
+
+/* ─── MAIN SEARCH: send ALL pages to Claude ─── */
+async function run() {
+  const q = document.getElementById('sq').value.trim();
+  if (!q) { alert('Ingresa al menos una palabra para buscar.'); return; }
+  if (!pdfPageTexts.length) { alert('Primero sube un PDF.'); return; }
+
+  lastQ = q;
+  setBusy(true, `Analizando ${pdfPageTexts.length} página(s) con IA…`);
+  document.getElementById('sbtn').disabled = true;
+
+  try {
+    // Build the full cartola text with page markers
+    const fullText = pdfPageTexts.map(p => `--- PÁGINA ${p.page} ---\n${p.text}`).join('\n\n');
+
+    const prompt = `Eres un extractor de datos bancarios. Analiza esta cartola CuentaRUT BancoEstado y extrae SOLO las filas que:
+1. Tienen un valor en la columna "Abonos" (dinero que INGRESÓ a la cuenta)
+2. Cuya descripción contenga el término buscado: "${q}"
+
+La cartola tiene columnas: Fecha | N° Operación | Descripción | Abonos | Cargos | Saldo
+- Los ABONOS son valores que aparecen en la columna Abonos (antes que Cargos y Saldo en la misma fila)
+- Los CARGOS son valores en la columna Cargos (a la derecha de Abonos)
+- IGNORA filas que solo tienen Cargos o Saldo
+
+Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin backticks, en este formato exacto:
+{"rows":[{"fecha":"27/Feb","nop":"7011850","desc":"TEF BANCOESTADO DE ASTETE SALAS JOR","abono":100000,"page":1}]}
+
+Reglas:
+- "fecha": la fecha tal como aparece (ej: "27/Feb", "16/Oct", "02/Ago")
+- "nop": el número de operación (puede ser numérico o texto como "CAJ.AUT")
+- "desc": descripción completa incluyendo continuaciones de línea
+- "abono": monto como número entero sin puntos ni símbolos (ej: 100000 no "100.000")
+- "page": número de página donde aparece
+- Si la descripción continúa en la línea siguiente (sin fecha), inclúyela en "desc"
+- La búsqueda "${q}" NO distingue mayúsculas/minúsculas
+- Si no hay resultados, devuelve {"rows":[]}
+
+CARTOLA:
+${fullText}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const raw = data.content.map(b => b.text || '').join('').trim();
+    // Clean any accidental markdown fences
+    const cleaned = raw.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();
+    const parsed = JSON.parse(cleaned);
+    allRows = parsed.rows || [];
+    results = allRows;
+
+  } catch (err) {
+    setBusy(false);
+    document.getElementById('sbtn').disabled = false;
+    alert('Error al analizar el PDF: ' + err.message);
+    return;
+  }
+
+  setBusy(false);
+  document.getElementById('sbtn').disabled = false;
+  updateSummary();
+  render();
+}
+
+/* ─── SUMMARY ─── */
+function updateSummary() {
+  document.getElementById('sumSec').style.display = 'block';
+  document.getElementById('sN').textContent = results.length;
+  const tot = results.reduce((s, r) => s + (r.abono || 0), 0);
+  document.getElementById('sAb').textContent = '$' + tot.toLocaleString('es-CL');
+  document.getElementById('pill').classList.toggle('on', results.length > 0);
+  document.getElementById('pill').textContent = results.length + ' resultado' + (results.length !== 1 ? 's' : '');
+  document.getElementById('expbtn').classList.toggle('on', results.length > 0);
+}
+
+/* ─── RENDER TABLE ─── */
+function render() {
+  document.getElementById('ttitle').textContent =
+    results.length ? `Resultados para "${lastQ}"` : `Sin resultados para "${lastQ}"`;
+
+  if (!results.length) { setEmpty('noresults'); return; }
+
+  const sorted = [...results].sort((a, b) => {
+    const asc = sortDir[sortCol] !== false;
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (sortCol === 'abono') { va = a.abono || 0; vb = b.abono || 0; }
+    if (sortCol === 'page') { va = Number(va); vb = Number(vb); }
+    if (typeof va === 'number') return asc ? va - vb : vb - va;
+    return asc
+      ? String(va).localeCompare(String(vb), 'es', { sensitivity: 'base' })
+      : String(vb).localeCompare(String(va), 'es', { sensitivity: 'base' });
+  });
+
+  const arr = c => sortCol === c ? (sortDir[c] !== false ? ' ↑' : ' ↓') : '';
+  const th = (c, l) => `<th class="${sortCol === c ? 'thsorted' : ''}" onclick="setSort('${c}')">${l}${arr(c)}</th>`;
+
+  let html = `<table><thead><tr>
+    ${th('fecha','Fecha')}${th('nop','N° Operación')}${th('desc','Descripción')}${th('abono','Abono')}${th('page','Pág.')}
+  </tr></thead><tbody>`;
+
+  let total = 0;
+  sorted.forEach(r => {
+    total += r.abono || 0;
+    html += `<tr>
+      <td class="tdf">${esc(r.fecha)}</td>
+      <td class="tdo">${esc(r.nop)}</td>
+      <td class="tdd">${hl(esc(r.desc), lastQ)}</td>
+      <td class="tda">$${(r.abono || 0).toLocaleString('es-CL')}</td>
+      <td class="tdp">${r.page}</td>
+    </tr>`;
+  });
+
+  html += `</tbody><tfoot><tr>
+    <td colspan="3" class="tot-lbl">TOTAL — ${sorted.length} abono${sorted.length !== 1 ? 's' : ''} encontrado${sorted.length !== 1 ? 's' : ''}</td>
+    <td class="tot-val">$${total.toLocaleString('es-CL')}</td>
+    <td></td>
+  </tr></tfoot></table>`;
+
+  document.getElementById('twrap').innerHTML = html;
+}
+
+function setSort(c) {
+  if (sortCol === c) sortDir[c] = !(sortDir[c] !== false);
+  else { sortCol = c; sortDir[c] = true; }
+  if (results.length) render();
+}
+
+/* ─── EXPORT CSV ─── */
+function exportCSV() {
+  if (!results.length) return;
+  const sorted = [...results].sort((a, b) => (a.page - b.page));
+  const rows = [['Fecha', 'N° Operación', 'Descripción', 'Abono', 'Página']];
+  sorted.forEach(r => rows.push([
+    r.fecha, r.nop,
+    '"' + String(r.desc).replace(/"/g, '""') + '"',
+    r.abono ?? '', r.page
+  ]));
+  rows.push([]);
+  const tot = results.reduce((s, r) => s + (r.abono || 0), 0);
+  rows.push(['"TOTAL"', '', '', tot, '']);
+  const csv = rows.map(r => r.join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'abonos_' + lastQ.replace(/[^a-z0-9]/gi, '_').slice(0, 30) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─── HELPERS ─── */
+function setBusy(on, msg = '') {
+  const bar = document.getElementById('statusBar');
+  bar.classList.toggle('on', on);
+  if (msg) document.getElementById('statusMsg').textContent = msg;
+  document.getElementById('sbtn').classList.toggle('loading', on);
+}
+
+function setEmpty(t) {
+  const m = {
+    ready: ['PDF listo', 'Escribe un término y presiona Buscar para ver los abonos.'],
+    noresults: ['Sin resultados', 'No hay abonos que coincidan con "' + lastQ + '". Prueba con otro término.'],
+  };
+  const [h, p] = m[t] || m.ready;
+  document.getElementById('twrap').innerHTML = `<div class="empty">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>${t === 'noresults' ? '<line x1="8" y1="11" x2="14" y2="11"/>' : ''}</svg>
+    <h3>${h}</h3><p>${p}</p></div>`;
+}
+
+function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escRe(t) { return t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function hl(text, q) {
+  if (!q) return text;
+  q.split(/\s+/).filter(Boolean).forEach(kw => {
+    text = text.replace(new RegExp('(' + escRe(kw) + ')', 'gi'), '<mark>$1</mark>');
+  });
+  return text;
+}
+</script>
+</body>
+</html>
